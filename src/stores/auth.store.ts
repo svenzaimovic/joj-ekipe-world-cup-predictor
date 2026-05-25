@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const profile = ref<Profile | null>(null)
   const initialized = ref(false)
   const loading = ref(false)
+  const isRecovering = ref(false)
 
   async function init() {
     const { data } = await supabase.auth.getSession()
@@ -16,7 +17,13 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value) await fetchProfile()
     initialized.value = true
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        isRecovering.value = true
+        user.value = session?.user ?? null
+        return
+      }
+      isRecovering.value = false
       user.value = session?.user ?? null
       if (user.value) {
         await fetchProfile()
@@ -57,5 +64,18 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchProfile()
   }
 
-  return { user, profile, initialized, loading, init, login, logout, updateUsername, fetchProfile }
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    isRecovering.value = false
+  }
+
+  async function sendPasswordReset(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) throw error
+  }
+
+  return { user, profile, initialized, loading, isRecovering, init, login, logout, updateUsername, fetchProfile, updatePassword, sendPasswordReset }
 })

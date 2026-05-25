@@ -11,12 +11,42 @@ const username = ref(auth.profile?.username ?? '')
 const saving = ref(false)
 const saved = ref(false)
 
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordSaving = ref(false)
+const passwordSaved = ref(false)
+const passwordError = ref('')
+
 async function updateUsername() {
   saving.value = true
   await auth.updateUsername(username.value)
   saving.value = false
   saved.value = true
   setTimeout(() => { saved.value = false }, 2000)
+}
+
+async function changePassword() {
+  passwordError.value = ''
+  if (newPassword.value.length < 6) {
+    passwordError.value = 'Password must be at least 6 characters'
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    passwordError.value = 'Passwords do not match'
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await auth.updatePassword(newPassword.value)
+    passwordSaved.value = true
+    newPassword.value = ''
+    confirmPassword.value = ''
+    setTimeout(() => { passwordSaved.value = false }, 2000)
+  } catch (e: unknown) {
+    passwordError.value = e instanceof Error ? e.message : 'Failed to update password'
+  } finally {
+    passwordSaving.value = false
+  }
 }
 
 async function logout() {
@@ -53,6 +83,36 @@ async function logout() {
       <BaseButton :loading="saving" @click="updateUsername">
         {{ saved ? '✓ Saved' : 'Save' }}
       </BaseButton>
+    </BaseCard>
+
+    <BaseCard class="mb-4">
+      <h3 class="text-sm font-bold text-slate-300 mb-4">Change password</h3>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">New password</label>
+          <input
+            v-model="newPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Min. 6 characters"
+            class="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2.5 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-gold-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Confirm password</label>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="••••••••"
+            class="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2.5 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-gold-500 transition-colors"
+          />
+        </div>
+        <p v-if="passwordError" class="text-wc-red-500 text-sm">{{ passwordError }}</p>
+        <BaseButton :loading="passwordSaving" @click="changePassword">
+          {{ passwordSaved ? '✓ Password updated' : 'Update password' }}
+        </BaseButton>
+      </div>
     </BaseCard>
 
     <BaseButton variant="danger" class="w-full" @click="logout">Sign out</BaseButton>

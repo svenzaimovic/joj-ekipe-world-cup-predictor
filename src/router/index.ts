@@ -11,6 +11,11 @@ const router = createRouter({
       meta: { requiresGuest: true },
     },
     {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+    },
+    {
       path: '/',
       component: () => import('@/layouts/AppLayout.vue'),
       meta: { requiresAuth: true },
@@ -50,6 +55,11 @@ router.beforeEach(async (to) => {
 
   if (!authStore.initialized) {
     await authStore.init()
+  }
+
+  // If Supabase fired PASSWORD_RECOVERY, always land on /reset-password
+  if (authStore.isRecovering && to.name !== 'reset-password') {
+    return { name: 'reset-password' }
   }
 
   if (to.meta.requiresAuth && !authStore.user) {
