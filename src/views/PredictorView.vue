@@ -69,9 +69,9 @@ async function save() {
       <StageLockBadge :stage="activeStage" />
     </div>
 
-    <LoadingSpinner v-if="matchesStore.loading" class="py-12" />
+    <LoadingSpinner v-if="matchesStore.loading || predictionsStore.loading" class="py-12" />
 
-    <div v-else class="flex flex-col gap-3">
+    <div v-else-if="!predictionsStore.loading" class="flex flex-col gap-3">
       <MatchCard
         v-for="match in activeMatches"
         :key="match.id"

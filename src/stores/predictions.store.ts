@@ -15,10 +15,12 @@ export const usePredictionsStore = defineStore('predictions', () => {
   const allPredictions = ref<Prediction[]>([])
   const drafts = ref<Map<number, PredictionDraft>>(new Map())
   const saving = ref(false)
+  const loading = ref(false)
 
   async function fetchMine() {
     const auth = useAuthStore()
     if (!auth.user) return
+    loading.value = true
     const { data } = await supabase
       .from('predictions')
       .select('*')
@@ -26,6 +28,7 @@ export const usePredictionsStore = defineStore('predictions', () => {
     for (const p of data ?? []) {
       myPredictions.value.set(p.match_id, p as Prediction)
     }
+    loading.value = false
   }
 
   async function fetchAllForStage(stage: string) {
@@ -85,5 +88,5 @@ export const usePredictionsStore = defineStore('predictions', () => {
     return drafts.value.get(matchId)
   }
 
-  return { myPredictions, allPredictions, drafts, saving, fetchMine, fetchAllForStage, setDraft, saveStage, getPrediction, getDraft }
+  return { myPredictions, allPredictions, drafts, saving, loading, fetchMine, fetchAllForStage, setDraft, saveStage, getPrediction, getDraft }
 })
