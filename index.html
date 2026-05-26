@@ -7,7 +7,15 @@
     <title>World Cup 2026 — Predictor & Draft</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Fallback shown only if Vue fails to mount -->
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0D1B2A;">
+        <div style="text-align:center;color:#C9A84C;font-family:system-ui,sans-serif;">
+          <div style="font-size:3rem;margin-bottom:1rem;">⚽</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#f1f5f9;">Loading…</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
