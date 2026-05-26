@@ -14,14 +14,12 @@ function calcPredictorPoints(hPred: number, aPred: number, hActual: number, aAct
   return 2
 }
 
-const ADVANCEMENT_BONUSES: Record<string, number> = {
-  r32_advance: 2,
-  r16_advance: 3,
-  qf_advance: 4,
-  sf_advance: 5,
-  final_advance: 7,
-  champion: 10,
-}
+// Win points scale inversely with team strength — weaker teams earn more per win
+// T1=3, T2=4, T3=5, T4=7 (same rate for all matches: group stage and playoffs)
+const TIER_WIN_POINTS: Record<number, number> = { 1: 3, 2: 4, 3: 5, 4: 7 }
+
+// Only bonus: +2 for qualifying from group stage (top 2)
+const QUALIFY_BONUS = 2
 
 Deno.serve(async (req) => {
   const { match_ids } = await req.json() as { match_ids: number[] }
@@ -49,37 +47,21 @@ Deno.serve(async (req) => {
         .eq('id', pred.id)
     }
 
-    // 2. Calculate draft points for team owners
+    // 2. Calculate draft points for team owners (tier-based win points)
     await calculateDraftMatchPoints(matchId, match)
 
-    // 3. Check advancement bonuses
+    // 3. Group qualify bonus — only awarded once all 6 group matches are done
     if (match.stage === 'group') {
-      // After all group matches for a group are finished, award r32 advancement to top 2
-      await checkGroupAdvancement(match.home_team_id, match.away_team_id)
-    } else if (match.stage !== 'final') {
-      // In knockout stages, winner advances to next round
-      const winnerId = match.home_score > match.away_score
-        ? match.home_team_id
-        : match.away_score > match.home_score
-          ? match.away_team_id
-          : null // draw goes to penalties — handled separately
-
-      if (winnerId) {
-        const nextStageBonus = getAdvancementBonus(match.stage)
-        if (nextStageBonus) await awardAdvancementBonus(winnerId, matchId, nextStageBonus)
-      }
-    } else if (match.stage === 'final') {
-      const winnerId = match.home_score >= match.away_score ? match.home_team_id : match.away_team_id
-      await awardAdvancementBonus(winnerId, matchId, 'final_advance')
-      await awardAdvancementBonus(winnerId, matchId, 'champion')
+      await checkGroupAdvancement(match.home_team_id, match.away_team_id, matchId)
     }
+    // No per-round advancement bonuses in knockout stages —
+    // tier-based win points are the only reward for going deep
   }
 
   return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
 })
 
 async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
-  // Find owners of home and away teams
   const { data: picks } = await supabase
     .from('draft_picks')
     .select('user_id, team_id')
@@ -89,20 +71,22 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
 
   const homeScore = match.home_score!
   const awayScore = match.away_score!
+  const homeTier: number = match.home_team?.tier ?? 2
+  const awayTier: number = match.away_team?.tier ?? 2
 
   for (const pick of picks) {
+    const isHome = pick.team_id === match.home_team_id
+    const scored = isHome ? homeScore : awayScore
+    const conceded = isHome ? awayScore : homeScore
+    const tier = isHome ? homeTier : awayTier
+    const winPts = TIER_WIN_POINTS[tier] ?? 3
+
     let pts = 0
     let reason = ''
 
-    if (pick.team_id === match.home_team_id) {
-      if (homeScore > awayScore) { pts = 3; reason = 'win' }
-      else if (homeScore === awayScore) { pts = 1; reason = 'draw' }
-      else { pts = 0; reason = 'loss' }
-    } else {
-      if (awayScore > homeScore) { pts = 3; reason = 'win' }
-      else if (awayScore === homeScore) { pts = 1; reason = 'draw' }
-      else { pts = 0; reason = 'loss' }
-    }
+    if (scored > conceded)  { pts = winPts; reason = 'win' }
+    else if (scored === conceded) { pts = 1; reason = 'draw' }
+    else { reason = 'loss' }
 
     if (pts > 0) {
       await supabase.from('draft_points').upsert({
@@ -116,74 +100,63 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
   }
 }
 
-function getAdvancementBonus(currentStage: string): string | null {
-  const map: Record<string, string> = {
-    r32: 'r32_advance',
-    r16: 'r16_advance',
-    qf: 'qf_advance',
-    sf: 'sf_advance',
-  }
-  return map[currentStage] ?? null
-}
-
-async function awardAdvancementBonus(teamId: number, matchId: number, reason: string) {
-  const { data: pick } = await supabase
-    .from('draft_picks')
-    .select('user_id')
-    .eq('team_id', teamId)
-    .maybeSingle()
-
-  if (!pick) return
-
-  await supabase.from('draft_points').upsert({
-    user_id: pick.user_id,
-    team_id: teamId,
-    match_id: matchId,
-    points: ADVANCEMENT_BONUSES[reason] ?? 0,
-    reason,
-  }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
-}
-
-async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number) {
-  // Get the group for these teams
+async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, matchId: number) {
   const { data: team } = await supabase.from('teams').select('group_name').eq('id', homeTeamId).single()
   if (!team?.group_name) return
 
-  // Get all teams in the group
   const { data: groupTeams } = await supabase.from('teams').select('id').eq('group_name', team.group_name)
   if (!groupTeams) return
 
   const groupTeamIds = groupTeams.map((t: { id: number }) => t.id)
 
-  // Count finished group matches for this group
   const { data: groupMatches } = await supabase
     .from('matches')
-    .select('id, home_team_id, away_team_id, home_score, away_score, status')
+    .select('id, home_team_id, away_team_id, home_score, away_score')
     .eq('stage', 'group')
     .in('home_team_id', groupTeamIds)
     .eq('status', 'finished')
 
-  // Each group has 6 matches (4 teams, round-robin)
+  // Each group has 6 matches — only process once all are done
   if ((groupMatches?.length ?? 0) < 6) return
 
-  // Calculate standings
-  const points: Record<number, number> = {}
-  for (const id of groupTeamIds) points[id] = 0
+  // Calculate standings to find top 2
+  const pts: Record<number, number> = {}
+  for (const id of groupTeamIds) pts[id] = 0
 
   for (const m of groupMatches ?? []) {
-    if (m.home_score > m.away_score) points[m.home_team_id] += 3
-    else if (m.home_score === m.away_score) { points[m.home_team_id] += 1; points[m.away_team_id] += 1 }
-    else points[m.away_team_id] += 3
+    if (m.home_score > m.away_score)       pts[m.home_team_id] += 3
+    else if (m.home_score === m.away_score) { pts[m.home_team_id] += 1; pts[m.away_team_id] += 1 }
+    else                                    pts[m.away_team_id] += 3
   }
 
-  const sorted = Object.entries(points).sort((a, b) => b[1] - a[1])
-  const top2 = sorted.slice(0, 2).map(([id]) => parseInt(id))
+  const top2 = Object.entries(pts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([id]) => parseInt(id))
 
-  // Award R32 advancement bonus to top 2 teams' owners
-  const lastMatchId = groupMatches![groupMatches!.length - 1].id
   for (const teamId of top2) {
-    await awardAdvancementBonus(teamId, lastMatchId, 'r32_advance')
+    const { data: pick } = await supabase
+      .from('draft_picks')
+      .select('user_id')
+      .eq('team_id', teamId)
+      .maybeSingle()
+
+    if (!pick) continue
+
+    await supabase.from('draft_points').upsert({
+      user_id: pick.user_id,
+      team_id: teamId,
+      match_id: matchId,
+      points: QUALIFY_BONUS,
+      reason: 'qualify',
+    }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
   }
+}
+
+interface TeamRow {
+  id: number
+  name: string
+  tier: number
 }
 
 interface MatchRow {
@@ -193,6 +166,6 @@ interface MatchRow {
   away_team_id: number
   home_score: number | null
   away_score: number | null
-  home_team: { id: number; name: string }
-  away_team: { id: number; name: string }
+  home_team: TeamRow
+  away_team: TeamRow
 }

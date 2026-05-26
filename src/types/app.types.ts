@@ -18,12 +18,29 @@ export interface Profile {
   created_at: string
 }
 
+export type TeamTier = 1 | 2 | 3 | 4
+
+export const TIER_LABELS: Record<TeamTier, string> = {
+  1: 'Favorite',
+  2: 'Contender',
+  3: 'Outsider',
+  4: 'Underdog',
+}
+
+export const TIER_WIN_POINTS: Record<TeamTier, number> = {
+  1: 3,
+  2: 4,
+  3: 5,
+  4: 7,
+}
+
 export interface Team {
   id: number
   name: string
   code: string
   flag_url: string | null
   group_name: string | null
+  tier: TeamTier
 }
 
 export interface Match {
