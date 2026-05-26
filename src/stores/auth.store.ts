@@ -12,10 +12,16 @@ export const useAuthStore = defineStore('auth', () => {
   const isRecovering = ref(false)
 
   async function init() {
-    const { data } = await supabase.auth.getSession()
-    user.value = data.session?.user ?? null
-    if (user.value) await fetchProfile()
-    initialized.value = true
+    try {
+      const { data } = await supabase.auth.getSession()
+      user.value = data.session?.user ?? null
+      if (user.value) await fetchProfile()
+    } catch (e) {
+      console.warn('Failed to get session:', e)
+      user.value = null
+    } finally {
+      initialized.value = true
+    }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {

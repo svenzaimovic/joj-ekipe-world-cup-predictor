@@ -54,7 +54,11 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
   if (!authStore.initialized) {
-    await authStore.init()
+    try {
+      await authStore.init()
+    } catch {
+      authStore.initialized = true // unblock navigation even if init fails
+    }
   }
 
   // If Supabase fired PASSWORD_RECOVERY, always land on /reset-password
