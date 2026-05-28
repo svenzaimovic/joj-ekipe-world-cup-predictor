@@ -15,8 +15,11 @@ function calcPredictorPoints(hPred: number, aPred: number, hActual: number, aAct
 }
 
 // Win points scale inversely with team strength — weaker teams earn more per win
-// T1=3, T2=4, T3=5, T4=7 (same rate for all matches: group stage and playoffs)
+// T1=3, T2=4, T3=5, T4=7 (same rate for group stage and playoffs)
 const TIER_WIN_POINTS: Record<number, number> = { 1: 3, 2: 4, 3: 5, 4: 7 }
+
+// Group stage draw points by tier — draws in knockout rounds award 0 (game goes to penalties)
+const TIER_DRAW_POINTS: Record<number, number> = { 1: 0, 2: 1, 3: 1, 4: 2 }
 
 // Only bonus: +2 for qualifying from group stage (top 2)
 const QUALIFY_BONUS = 2
@@ -80,13 +83,14 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     const conceded = isHome ? awayScore : homeScore
     const tier = isHome ? homeTier : awayTier
     const winPts = TIER_WIN_POINTS[tier] ?? 3
+    const drawPts = match.stage === 'group' ? (TIER_DRAW_POINTS[tier] ?? 1) : 0
 
     let pts = 0
     let reason = ''
 
-    if (scored > conceded)  { pts = winPts; reason = 'win' }
-    else if (scored === conceded) { pts = 1; reason = 'draw' }
-    else { reason = 'loss' }
+    if (scored > conceded)        { pts = winPts; reason = 'win' }
+    else if (scored === conceded)  { pts = drawPts; reason = 'draw' }
+    else                          { reason = 'loss' }
 
     if (pts > 0) {
       await supabase.from('draft_points').upsert({

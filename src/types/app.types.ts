@@ -34,6 +34,14 @@ export const TIER_WIN_POINTS: Record<TeamTier, number> = {
   4: 7,
 }
 
+// Group stage only — knockout draws award 0 (game goes to penalties)
+export const TIER_DRAW_POINTS: Record<TeamTier, number> = {
+  1: 0,
+  2: 1,
+  3: 1,
+  4: 2,
+}
+
 export interface Team {
   id: number
   name: string
