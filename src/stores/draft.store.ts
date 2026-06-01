@@ -50,10 +50,15 @@ export const useDraftStore = defineStore('draft', () => {
     return map
   })
 
-  async function fetchAll() {
+  async function fetchAll(leagueId: string, roomType: 'official' | 'practice' = 'official') {
     loading.value = true
     const [roomRes, teamsRes, profilesRes] = await Promise.all([
-      supabase.from('draft_rooms').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase
+        .from('draft_rooms')
+        .select('*')
+        .eq('league_id', leagueId)
+        .eq('room_type', roomType)
+        .maybeSingle(),
       supabase.from('teams').select('*').order('group_name').order('name'),
       supabase.from('profiles').select('*'),
     ])
@@ -77,15 +82,20 @@ export const useDraftStore = defineStore('draft', () => {
     picks.value = (data ?? []) as DraftPick[]
   }
 
-  async function joinRoom() {
-    const { data, error } = await supabase.functions.invoke('draft-join', {})
+  async function joinRoom(leagueId: string, roomType: 'official' | 'practice' = 'official') {
+    const { data, error } = await supabase.functions.invoke('draft-join', {
+      body: { league_id: leagueId, room_type: roomType },
+    })
     if (error) throw error
-    await fetchAll()
+    await fetchAll(leagueId, roomType)
     return data
   }
 
   async function startDraft() {
-    const { error } = await supabase.functions.invoke('draft-start', {})
+    if (!room.value) return
+    const { error } = await supabase.functions.invoke('draft-start', {
+      body: { room_id: room.value.id },
+    })
     if (error) throw error
   }
 
@@ -97,6 +107,14 @@ export const useDraftStore = defineStore('draft', () => {
     })
     pickLoading.value = false
     if (error) throw error
+  }
+
+  async function resetPractice(leagueId: string) {
+    const { error } = await supabase.functions.invoke('practice-reset', {
+      body: { league_id: leagueId },
+    })
+    if (error) throw error
+    // Room state is updated via realtime; picks cleared by the UPDATE handler below
   }
 
   function subscribeToRealtime() {
@@ -112,6 +130,11 @@ export const useDraftStore = defineStore('draft', () => {
         room.value = { ...room.value!, ...payload.new }
         if (payload.new.status === 'active' && !timerStart.value) {
           timerStart.value = new Date()
+        }
+        // Practice room was reset — clear local picks and timer
+        if (payload.new.status === 'waiting') {
+          picks.value = []
+          timerStart.value = null
         }
       })
       .subscribe()
@@ -129,7 +152,7 @@ export const useDraftStore = defineStore('draft', () => {
     room, picks, teams, profiles, loading, pickLoading, timerStart,
     pickedTeamIds, availableTeams, currentPickerUserId, isMyTurn,
     teamsPerPlayer, totalPicks, isDraftComplete, picksByUser,
-    fetchAll, fetchPicks, joinRoom, startDraft, makePick, subscribeToRealtime,
-    getProfile, getTeam,
+    fetchAll, fetchPicks, joinRoom, startDraft, makePick, resetPractice,
+    subscribeToRealtime, getProfile, getTeam,
   }
 })

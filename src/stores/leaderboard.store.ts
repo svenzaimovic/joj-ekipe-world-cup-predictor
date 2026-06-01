@@ -6,21 +6,23 @@ import type { LeaderboardEntry } from '@/types/app.types'
 export const useLeaderboardStore = defineStore('leaderboard', () => {
   const entries = ref<LeaderboardEntry[]>([])
   const loading = ref(false)
+  const currentLeagueId = ref<string | null>(null)
 
-  async function fetch() {
+  async function fetch(leagueId: string) {
     loading.value = true
-    const { data } = await supabase.from('leaderboard').select('*')
+    currentLeagueId.value = leagueId
+    const { data } = await supabase.rpc('league_leaderboard', { p_league_id: leagueId })
     entries.value = (data ?? []) as LeaderboardEntry[]
     loading.value = false
   }
 
-  function subscribeToUpdates() {
+  function subscribeToUpdates(leagueId: string) {
     return supabase
       .channel('leaderboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, () => fetch())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_points' }, () => fetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, () => fetch(leagueId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_points' }, () => fetch(leagueId))
       .subscribe()
   }
 
-  return { entries, loading, fetch, subscribeToUpdates }
+  return { entries, loading, currentLeagueId, fetch, subscribeToUpdates }
 })

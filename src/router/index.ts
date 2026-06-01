@@ -31,19 +31,51 @@ const router = createRouter({
           component: () => import('@/views/PredictorView.vue'),
         },
         {
-          path: 'leaderboard',
-          name: 'leaderboard',
-          component: () => import('@/views/LeaderboardView.vue'),
-        },
-        {
-          path: 'draft',
-          name: 'draft',
-          component: () => import('@/views/DraftView.vue'),
-        },
-        {
           path: 'profile',
           name: 'profile',
           component: () => import('@/views/ProfileView.vue'),
+        },
+        // Legacy routes — redirect to leagues list
+        {
+          path: 'draft',
+          redirect: { name: 'leagues' },
+        },
+        {
+          path: 'leaderboard',
+          redirect: { name: 'leagues' },
+        },
+        // Leagues
+        {
+          path: 'leagues',
+          name: 'leagues',
+          component: () => import('@/views/LeagueListView.vue'),
+        },
+        {
+          path: 'leagues/:leagueId',
+          component: () => import('@/layouts/LeagueLayout.vue'),
+          children: [
+            {
+              path: '',
+              name: 'league-home',
+              component: () => import('@/views/LeagueHomeView.vue'),
+            },
+            {
+              path: 'draft',
+              name: 'league-draft',
+              component: () => import('@/views/DraftView.vue'),
+            },
+            {
+              path: 'draft/practice',
+              name: 'league-draft-practice',
+              component: () => import('@/views/DraftView.vue'),
+              props: { isPractice: true },
+            },
+            {
+              path: 'leaderboard',
+              name: 'league-leaderboard',
+              component: () => import('@/views/LeaderboardView.vue'),
+            },
+          ],
         },
       ],
     },

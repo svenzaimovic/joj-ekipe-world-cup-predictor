@@ -85,6 +85,14 @@ export interface Prediction {
   updated_at: string
 }
 
+export interface League {
+  id: string
+  name: string
+  invite_code: string
+  owner_id: string
+  created_at: string
+}
+
 export interface DraftRoom {
   id: string
   status: 'waiting' | 'active' | 'completed'
@@ -93,6 +101,8 @@ export interface DraftRoom {
   pick_timer_seconds: number
   created_at: string
   started_at: string | null
+  league_id: string | null
+  room_type: 'official' | 'practice'
 }
 
 export interface DraftPick {

@@ -15,9 +15,9 @@ Deno.serve(async (req) => {
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const { league_id, room_type = 'official' } = await req.json() as { league_id: string; room_type?: 'official' | 'practice' }
+  const { league_id } = await req.json() as { league_id: string }
 
-  // Verify user is a member of this league
+  // Verify the user is a league member
   const { data: membership } = await supabase
     .from('league_members')
     .select('league_id')
@@ -29,29 +29,31 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Not a member of this league' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
   }
 
-  // Find the room for this league and room_type
+  // Find the practice room for this league
   const { data: room } = await supabase
     .from('draft_rooms')
-    .select('*')
+    .select('id')
     .eq('league_id', league_id)
-    .eq('room_type', room_type)
+    .eq('room_type', 'practice')
     .maybeSingle()
 
   if (!room) {
-    return new Response(JSON.stringify({ error: 'Draft room not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Practice room not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
   }
 
-  if (room.status !== 'waiting') {
-    return new Response(JSON.stringify({ error: 'Draft already started' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
-  }
+  // Delete all picks for this room (room row keeps its ID so realtime subs stay intact)
+  await supabase.from('draft_picks').delete().eq('room_id', room.id)
 
-  // Add user to pick_order if not already in it
-  if (!room.pick_order.includes(user.id)) {
-    await supabase
-      .from('draft_rooms')
-      .update({ pick_order: [...room.pick_order, user.id] })
-      .eq('id', room.id)
-  }
+  // Reset room state back to waiting lobby
+  await supabase
+    .from('draft_rooms')
+    .update({
+      status: 'waiting',
+      pick_order: [],
+      current_pick_index: 0,
+      started_at: null,
+    })
+    .eq('id', room.id)
 
-  return new Response(JSON.stringify({ ok: true, room_id: room.id }), { headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
 })

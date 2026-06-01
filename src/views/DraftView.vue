@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed, inject } from 'vue'
+import { useRoute } from 'vue-router'
 import { useDraftStore } from '@/stores/draft.store'
 import { useAuthStore } from '@/stores/auth.store'
 import TeamGrid from '@/components/draft/TeamGrid.vue'
@@ -13,15 +14,22 @@ import type { Team } from '@/types/app.types'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
 
+const props = withDefaults(defineProps<{ isPractice?: boolean }>(), { isPractice: false })
+
+const route = useRoute()
 const draftStore = useDraftStore()
 const auth = useAuthStore()
 const toast = inject<Ref<InstanceType<typeof BaseToast> | null>>('toast')
 
+const leagueId = computed(() => route.params.leagueId as string)
+const roomType = computed(() => (props.isPractice ? 'practice' : 'official') as 'official' | 'practice')
+
 const pendingTeam = ref<Team | null>(null)
 const realtimeChannel = ref<ReturnType<typeof draftStore.subscribeToRealtime>>(null)
+const resetLoading = ref(false)
 
 onMounted(async () => {
-  await draftStore.fetchAll()
+  await draftStore.fetchAll(leagueId.value, roomType.value)
   realtimeChannel.value = draftStore.subscribeToRealtime()
 })
 
@@ -37,7 +45,7 @@ const currentPicker = computed(() =>
 
 async function joinDraft() {
   try {
-    await draftStore.joinRoom()
+    await draftStore.joinRoom(leagueId.value, roomType.value)
     toast?.value?.add('Joined the draft room!', 'success')
   } catch {
     toast?.value?.add('Failed to join draft room.', 'error')
@@ -51,6 +59,17 @@ async function startDraft() {
   } catch {
     toast?.value?.add('Failed to start draft.', 'error')
   }
+}
+
+async function resetPractice() {
+  resetLoading.value = true
+  try {
+    await draftStore.resetPractice(leagueId.value)
+    toast?.value?.add('Practice draft reset.', 'success')
+  } catch {
+    toast?.value?.add('Failed to reset practice draft.', 'error')
+  }
+  resetLoading.value = false
 }
 
 function onTeamSelect(team: Team) {
@@ -76,7 +95,15 @@ const hasJoined = computed(() =>
 
 <template>
   <div class="p-4 md:p-8 max-w-6xl mx-auto pb-24 md:pb-8">
-    <h1 class="text-2xl font-black text-slate-100 mb-6">Draft Room</h1>
+    <div class="flex items-center gap-3 mb-6">
+      <h1 class="text-2xl font-black text-slate-100">{{ isPractice ? 'Practice Draft' : 'Draft Room' }}</h1>
+      <span
+        v-if="isPractice"
+        class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold px-2.5 py-1 rounded-full"
+      >
+        PRACTICE · No scoring
+      </span>
+    </div>
 
     <LoadingSpinner v-if="draftStore.loading" class="py-24" />
 
@@ -84,11 +111,16 @@ const hasJoined = computed(() =>
     <div v-else-if="!draftStore.room || draftStore.room.status === 'waiting'" class="max-w-lg mx-auto">
       <BaseCard>
         <div class="text-center py-4">
-          <div class="text-5xl mb-4">🎲</div>
-          <h2 class="text-xl font-black text-slate-100 mb-2">Draft Lobby</h2>
+          <div class="text-5xl mb-4">{{ isPractice ? '🧪' : '🎲' }}</div>
+          <h2 class="text-xl font-black text-slate-100 mb-2">{{ isPractice ? 'Practice Lobby' : 'Draft Lobby' }}</h2>
           <p class="text-slate-400 text-sm mb-6">
-            Join the lobby and wait for everyone. When ready, any player can start the draft.
-            Pick order will be randomised at start time.
+            <template v-if="isPractice">
+              This is a practice run — picks won't count towards scoring. Great for testing the format before the real draft!
+            </template>
+            <template v-else>
+              Join the lobby and wait for everyone. When ready, any player can start the draft.
+              Pick order will be randomised at start time.
+            </template>
           </p>
 
           <!-- Connected players -->
@@ -113,7 +145,7 @@ const hasJoined = computed(() =>
 
           <div class="flex flex-col gap-3">
             <BaseButton v-if="!hasJoined" size="lg" class="w-full" @click="joinDraft">
-              Join Draft Room
+              Join {{ isPractice ? 'Practice' : 'Draft' }} Room
             </BaseButton>
             <BaseButton
               v-if="hasJoined && (draftStore.room?.pick_order.length ?? 0) >= 2"
@@ -122,7 +154,7 @@ const hasJoined = computed(() =>
               class="w-full"
               @click="startDraft"
             >
-              Start Draft
+              Start {{ isPractice ? 'Practice' : 'Draft' }}
             </BaseButton>
             <p v-if="hasJoined" class="text-emerald-400 text-sm">✓ You're in the lobby</p>
           </div>
@@ -173,9 +205,20 @@ const hasJoined = computed(() =>
     <!-- COMPLETED -->
     <div v-else-if="draftStore.room.status === 'completed'">
       <div class="text-center mb-8">
-        <div class="text-5xl mb-3">🏆</div>
-        <h2 class="text-2xl font-black text-slate-100">Draft Complete!</h2>
-        <p class="text-slate-400 mt-1">Here's who owns which teams</p>
+        <div class="text-5xl mb-3">{{ isPractice ? '🧪' : '🏆' }}</div>
+        <h2 class="text-2xl font-black text-slate-100">{{ isPractice ? 'Practice Complete!' : 'Draft Complete!' }}</h2>
+        <p class="text-slate-400 mt-1">
+          {{ isPractice ? 'This was a practice run — no points awarded.' : "Here's who owns which teams" }}
+        </p>
+        <BaseButton
+          v-if="isPractice"
+          variant="secondary"
+          class="mt-4"
+          :loading="resetLoading"
+          @click="resetPractice"
+        >
+          Reset &amp; Play Again
+        </BaseButton>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -200,6 +243,13 @@ const hasJoined = computed(() =>
           </div>
         </BaseCard>
       </div>
+
+      <!-- Reset button also shown in lobby when practice room has been completed -->
+      <div v-if="isPractice" class="text-center mt-8">
+        <BaseButton variant="secondary" :loading="resetLoading" @click="resetPractice">
+          Reset &amp; Play Again
+        </BaseButton>
+      </div>
     </div>
 
     <!-- Confirm pick modal -->
@@ -208,6 +258,7 @@ const hasJoined = computed(() =>
         <div class="text-4xl mb-3">🎯</div>
         <p class="text-slate-300 mb-6">
           Draft <span class="font-black text-gold-500">{{ pendingTeam.name }}</span>?
+          <span v-if="isPractice" class="block text-xs text-amber-400 mt-1">(Practice — no scoring)</span>
         </p>
         <div class="flex gap-3">
           <BaseButton variant="secondary" class="flex-1" @click="pendingTeam = null">Cancel</BaseButton>

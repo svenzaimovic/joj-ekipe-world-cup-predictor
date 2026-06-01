@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
         .eq('id', pred.id)
     }
 
-    // 2. Calculate draft points for team owners (tier-based win points)
+    // 2. Calculate draft points for team owners — official rooms only
     await calculateDraftMatchPoints(matchId, match)
 
     // 3. Group qualify bonus — only awarded once all 6 group matches are done
@@ -65,12 +65,14 @@ Deno.serve(async (req) => {
 })
 
 async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
-  const { data: picks } = await supabase
+  // Only picks from official (non-practice) rooms earn points
+  const { data: allPicks } = await supabase
     .from('draft_picks')
-    .select('user_id, team_id')
+    .select('user_id, team_id, room_id, draft_rooms!inner(league_id, room_type)')
     .in('team_id', [match.home_team_id, match.away_team_id].filter(Boolean))
 
-  if (!picks?.length) return
+  const picks = (allPicks ?? []).filter((p: any) => p.draft_rooms?.room_type === 'official')
+  if (!picks.length) return
 
   const homeScore = match.home_score!
   const awayScore = match.away_score!
@@ -93,13 +95,15 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     else                          { reason = 'loss' }
 
     if (pts > 0) {
+      const leagueId = (pick as any).draft_rooms?.league_id ?? null
       await supabase.from('draft_points').upsert({
         user_id: pick.user_id,
         team_id: pick.team_id,
         match_id: matchId,
         points: pts,
         reason,
-      }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
+        league_id: leagueId,
+      }, { onConflict: 'user_id,team_id,match_id,reason,league_id', ignoreDuplicates: true })
     }
   }
 }
@@ -139,21 +143,25 @@ async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, mat
     .map(([id]) => parseInt(id))
 
   for (const teamId of top2) {
-    const { data: pick } = await supabase
+    // Find all official picks for this team (one per league)
+    const { data: allPicks } = await supabase
       .from('draft_picks')
-      .select('user_id')
+      .select('user_id, team_id, room_id, draft_rooms!inner(league_id, room_type)')
       .eq('team_id', teamId)
-      .maybeSingle()
 
-    if (!pick) continue
+    const officialPicks = (allPicks ?? []).filter((p: any) => p.draft_rooms?.room_type === 'official')
 
-    await supabase.from('draft_points').upsert({
-      user_id: pick.user_id,
-      team_id: teamId,
-      match_id: matchId,
-      points: QUALIFY_BONUS,
-      reason: 'qualify',
-    }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
+    for (const pick of officialPicks) {
+      const leagueId = (pick as any).draft_rooms?.league_id ?? null
+      await supabase.from('draft_points').upsert({
+        user_id: pick.user_id,
+        team_id: teamId,
+        match_id: matchId,
+        points: QUALIFY_BONUS,
+        reason: 'qualify',
+        league_id: leagueId,
+      }, { onConflict: 'user_id,team_id,match_id,reason,league_id', ignoreDuplicates: true })
+    }
   }
 }
 

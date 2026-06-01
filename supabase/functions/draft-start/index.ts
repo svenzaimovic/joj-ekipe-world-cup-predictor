@@ -24,12 +24,13 @@ Deno.serve(async (req) => {
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
+  const { room_id } = await req.json() as { room_id: string }
+
   const { data: room } = await supabase
     .from('draft_rooms')
     .select('*')
+    .eq('id', room_id)
     .eq('status', 'waiting')
-    .order('created_at', { ascending: false })
-    .limit(1)
     .maybeSingle()
 
   if (!room) {
@@ -40,7 +41,6 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Need at least 2 players to start' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
-  // Shuffle draft order
   const shuffledOrder = shuffle(room.pick_order)
 
   await supabase

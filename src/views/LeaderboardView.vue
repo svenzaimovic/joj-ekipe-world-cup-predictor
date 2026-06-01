@@ -1,21 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLeaderboardStore } from '@/stores/leaderboard.store'
+import { useLeagueStore } from '@/stores/league.store'
 import { useAuthStore } from '@/stores/auth.store'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 
+const route = useRoute()
 const leaderboardStore = useLeaderboardStore()
+const leagueStore = useLeagueStore()
 const auth = useAuthStore()
 const tab = ref<'total' | 'predictor' | 'draft'>('total')
 
-onMounted(() => leaderboardStore.fetch())
+const leagueId = computed(() => route.params.leagueId as string)
+const leaderboardChannel = ref<ReturnType<typeof leaderboardStore.subscribeToUpdates> | null>(null)
+
+onMounted(async () => {
+  await leaderboardStore.fetch(leagueId.value)
+  leaderboardChannel.value = leaderboardStore.subscribeToUpdates(leagueId.value)
+})
+
+onUnmounted(() => {
+  leaderboardChannel.value?.unsubscribe()
+})
 
 const medals = ['🥇', '🥈', '🥉']
 </script>
 
 <template>
   <div class="p-4 md:p-8 max-w-2xl mx-auto pb-24 md:pb-8">
-    <h1 class="text-2xl font-black text-slate-100 mb-6">Standings</h1>
+    <div class="mb-6">
+      <h1 class="text-2xl font-black text-slate-100">Standings</h1>
+      <p class="text-slate-500 text-sm mt-0.5">{{ leagueStore.activeLeague?.name }}</p>
+    </div>
 
     <!-- Tabs -->
     <div class="flex gap-1 bg-navy-800 p-1 rounded-xl border border-navy-700 mb-6">
