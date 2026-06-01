@@ -4,11 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useLeagueStore } from '@/stores/league.store'
 import { useLeaderboardStore } from '@/stores/leaderboard.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { supabase } from '@/lib/supabase'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ScoringGuide from '@/components/ui/ScoringGuide.vue'
+import { TIER_LABELS, TIER_COLORS } from '@/types/app.types'
+import type { Team, TeamTier } from '@/types/app.types'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
 
@@ -25,12 +28,23 @@ const memberUserIds = ref<string[]>([])
 const membersLoading = ref(false)
 const showDeleteModal = ref(false)
 const deleteLoading = ref(false)
+const teams = ref<Team[]>([])
+
+const tierGroups = computed(() => {
+  const tiers: TeamTier[] = [1, 2, 3, 4]
+  return tiers.map((tier) => ({
+    tier,
+    teams: teams.value.filter((t) => t.tier === tier).sort((a, b) => a.name.localeCompare(b.name)),
+  }))
+})
 
 onMounted(async () => {
-  await Promise.all([
+  const [, , teamsRes] = await Promise.all([
     leaderboardStore.fetch(leagueId.value),
     loadMembers(),
+    supabase.from('teams').select('id,name,code,tier,flag_url,group_name').order('name'),
   ])
+  teams.value = (teamsRes.data ?? []) as Team[]
   leaderboardChannel.value = leaderboardStore.subscribeToUpdates(leagueId.value)
 })
 
@@ -137,10 +151,31 @@ function copyInviteCode() {
       </button>
     </div>
 
-    <!-- Scoring guide -->
+    <!-- Teams by tier + scoring guide -->
     <div class="mb-8">
-      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">How Points Work</h2>
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Teams &amp; Points</h2>
       <BaseCard>
+        <!-- Tier grid: 4 columns on desktop, 2 on mobile -->
+        <div v-if="teams.length" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-navy-700">
+          <div v-for="group in tierGroups" :key="group.tier">
+            <div class="flex items-center gap-1.5 mb-2">
+              <div :class="['w-2 h-2 rounded-full shrink-0', TIER_COLORS[group.tier].dot]" />
+              <span :class="['text-xs font-bold uppercase tracking-wide', TIER_COLORS[group.tier].text]">
+                T{{ group.tier }} · {{ TIER_LABELS[group.tier] }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span
+                v-for="team in group.teams"
+                :key="team.id"
+                :class="['text-[11px] px-1.5 py-0.5 rounded font-medium text-slate-300', TIER_COLORS[group.tier].bg]"
+              >
+                {{ team.name }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <ScoringGuide />
       </BaseCard>
     </div>
