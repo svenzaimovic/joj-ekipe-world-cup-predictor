@@ -23,8 +23,13 @@ export const useDraftStore = defineStore('draft', () => {
     if (!room.value || room.value.status !== 'active') return null
     const order = room.value.pick_order
     if (!order.length) return null
-    const idx = room.value.current_pick_index % order.length
-    return order[idx] ?? null
+    const pickIndex = room.value.current_pick_index
+    const playerCount = order.length
+    const snakeRound = Math.floor(pickIndex / playerCount)
+    const posInRound = pickIndex % playerCount
+    const forward = snakeRound % 2 === 0
+    const playerIndex = forward ? posInRound : playerCount - 1 - posInRound
+    return order[playerIndex] ?? null
   })
 
   const isMyTurn = computed(() => {
