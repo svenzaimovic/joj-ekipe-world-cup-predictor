@@ -15,13 +15,12 @@ const rounds = computed(() => {
   for (let r = 0; r < totalRounds; r++) {
     const row: typeof result[0] = []
     const forward = r % 2 === 0
-    const playerOrder = forward
-      ? draftStore.room.pick_order
-      : [...draftStore.room.pick_order].reverse()
 
-    for (let p = 0; p < playerCount; p++) {
-      const pickNumber = r * playerCount + p + 1
-      const userId = playerOrder[p]
+    for (let playerIdx = 0; playerIdx < playerCount; playerIdx++) {
+      const userId = draftStore.room.pick_order[playerIdx]
+      // Snake: in reverse rounds the player at index i picks at position (playerCount - 1 - i) within that round
+      const posInRound = forward ? playerIdx : playerCount - 1 - playerIdx
+      const pickNumber = r * playerCount + posInRound + 1
       const pick = draftStore.picks.find((pk) => pk.pick_number === pickNumber) ?? null
       const isCurrent = draftStore.room!.current_pick_index === pickNumber - 1
       row.push({ userId, pick, isCurrent })
