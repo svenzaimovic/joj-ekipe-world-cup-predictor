@@ -10,7 +10,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import type { Team } from '@/types/app.types'
+import type { Team, TeamTier } from '@/types/app.types'
+import { TIER_COLORS } from '@/types/app.types'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
 
@@ -237,8 +238,10 @@ const hasJoined = computed(() =>
               class="flex items-center gap-2 text-sm"
             >
               <span class="text-xs font-bold text-slate-500 w-8 shrink-0">{{ pick.snake_round }}.</span>
-              <span class="text-slate-300">{{ draftStore.getTeam(pick.team_id)?.name }}</span>
-              <span class="text-slate-500 text-xs ml-auto">{{ draftStore.getTeam(pick.team_id)?.code }}</span>
+              <span class="text-slate-300 flex-1">{{ draftStore.getTeam(pick.team_id)?.name }}</span>
+              <span
+                :class="['text-[10px] font-bold px-1.5 py-0.5 rounded-full', TIER_COLORS[draftStore.getTeam(pick.team_id)?.tier as TeamTier ?? 1].text, TIER_COLORS[draftStore.getTeam(pick.team_id)?.tier as TeamTier ?? 1].bg]"
+              >T{{ draftStore.getTeam(pick.team_id)?.tier }}</span>
             </div>
           </div>
         </BaseCard>

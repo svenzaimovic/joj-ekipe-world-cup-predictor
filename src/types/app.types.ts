@@ -27,6 +27,13 @@ export const TIER_LABELS: Record<TeamTier, string> = {
   4: 'Underdog',
 }
 
+export const TIER_COLORS: Record<TeamTier, { text: string; border: string; bg: string; dot: string }> = {
+  1: { text: 'text-gold-500',    border: 'border-gold-500/50',    bg: 'bg-gold-500/10',    dot: 'bg-gold-500' },
+  2: { text: 'text-purple-400',  border: 'border-purple-500/50',  bg: 'bg-purple-500/10',  dot: 'bg-purple-400' },
+  3: { text: 'text-blue-400',    border: 'border-blue-500/50',    bg: 'bg-blue-500/10',    dot: 'bg-blue-400' },
+  4: { text: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400' },
+}
+
 export const TIER_WIN_POINTS: Record<TeamTier, number> = {
   1: 3,
   2: 4,
