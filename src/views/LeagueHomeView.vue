@@ -8,6 +8,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import ScoringGuide from '@/components/ui/ScoringGuide.vue'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
 
@@ -138,6 +139,14 @@ function copyInviteCode() {
         <div class="font-bold text-slate-100">Standings</div>
         <div class="text-xs text-slate-500 mt-0.5">League leaderboard</div>
       </button>
+    </div>
+
+    <!-- Scoring guide -->
+    <div class="mb-8">
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">How Points Work</h2>
+      <BaseCard>
+        <ScoringGuide />
+      </BaseCard>
     </div>
 
     <!-- Member list -->

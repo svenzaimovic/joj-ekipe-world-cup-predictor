@@ -12,6 +12,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import type { Team, TeamTier } from '@/types/app.types'
 import { TIER_COLORS } from '@/types/app.types'
+import ScoringGuide from '@/components/ui/ScoringGuide.vue'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
 
@@ -92,6 +93,8 @@ async function confirmPick() {
 const hasJoined = computed(() =>
   draftStore.room?.pick_order.includes(auth.user?.id ?? '') ?? false,
 )
+
+const showScoringGuide = ref(false)
 
 const timerInitialSeconds = computed(() => {
   const room = draftStore.room
@@ -198,9 +201,24 @@ const timerInitialSeconds = computed(() => {
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <!-- Team grid -->
         <div class="lg:col-span-3">
-          <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
-            {{ draftStore.isMyTurn ? 'Select your team' : 'Available teams' }}
-          </h2>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+              {{ draftStore.isMyTurn ? 'Select your team' : 'Available teams' }}
+            </h2>
+            <button
+              class="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+              @click="showScoringGuide = !showScoringGuide"
+            >
+              <span>{{ showScoringGuide ? 'Hide' : 'Scoring' }}</span>
+              <span>{{ showScoringGuide ? '▲' : '▼' }}</span>
+            </button>
+          </div>
+
+          <!-- Collapsible scoring reference -->
+          <div v-if="showScoringGuide" class="mb-4 bg-navy-800 border border-navy-700 rounded-2xl p-4">
+            <ScoringGuide />
+          </div>
+
           <TeamGrid @pick="onTeamSelect" />
         </div>
 
