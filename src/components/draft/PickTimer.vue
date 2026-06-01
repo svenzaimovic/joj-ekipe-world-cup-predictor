@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { usePickTimer } from '@/composables/usePickTimer'
 
 const props = defineProps<{
   totalSeconds: number
+  initialSeconds: number
   active: boolean
 }>()
 
 const emit = defineEmits<{ expire: [] }>()
 
-const { secondsLeft, urgency, circumference, strokeDashoffset, reset, stop } = usePickTimer(
+const { secondsLeft, urgency, circumference, strokeDashoffset, start, stop } = usePickTimer(
   props.totalSeconds,
+  props.initialSeconds,
   () => emit('expire'),
 )
 
-watch(() => props.active, (val) => {
-  if (val) reset()
-  else stop()
-}, { immediate: true })
+onMounted(() => {
+  if (props.active) start()
+})
 
 const strokeColor = computed(() => {
   if (urgency.value === 'critical') return '#D62828'

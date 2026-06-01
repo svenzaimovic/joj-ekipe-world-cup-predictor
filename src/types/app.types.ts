@@ -108,6 +108,7 @@ export interface DraftRoom {
   pick_timer_seconds: number
   created_at: string
   started_at: string | null
+  current_pick_started_at: string | null
   league_id: string | null
   room_type: 'official' | 'practice'
 }

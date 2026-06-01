@@ -1,22 +1,20 @@
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 
-export function usePickTimer(totalSeconds: number, onExpire: () => void) {
-  const secondsLeft = ref(totalSeconds)
+export function usePickTimer(totalSeconds: number, initialSeconds: number, onExpire: () => void) {
+  const secondsLeft = ref(initialSeconds)
   let interval: ReturnType<typeof setInterval> | null = null
 
-  function reset() {
-    secondsLeft.value = totalSeconds
-    if (!interval) {
-      interval = setInterval(() => {
-        if (secondsLeft.value <= 0) {
-          clearInterval(interval!)
-          interval = null
-          onExpire()
-          return
-        }
-        secondsLeft.value--
-      }, 1000)
-    }
+  function start() {
+    if (interval) return
+    interval = setInterval(() => {
+      if (secondsLeft.value <= 0) {
+        clearInterval(interval!)
+        interval = null
+        onExpire()
+        return
+      }
+      secondsLeft.value--
+    }, 1000)
   }
 
   function stop() {
@@ -37,8 +35,7 @@ export function usePickTimer(totalSeconds: number, onExpire: () => void) {
   })
 
   const circumference = 2 * Math.PI * 40
-
   const strokeDashoffset = computed(() => circumference * (1 - progress.value))
 
-  return { secondsLeft, progress, urgency, circumference, strokeDashoffset, reset, stop }
+  return { secondsLeft, progress, urgency, circumference, strokeDashoffset, start, stop }
 }

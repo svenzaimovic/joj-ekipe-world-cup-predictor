@@ -50,13 +50,15 @@ Deno.serve(async (req) => {
 
   const shuffledOrder = shuffle(room.pick_order)
 
+  const now = new Date().toISOString()
   await supabase
     .from('draft_rooms')
     .update({
       status: 'active',
       pick_order: shuffledOrder,
       current_pick_index: 0,
-      started_at: new Date().toISOString(),
+      started_at: now,
+      current_pick_started_at: now,
     })
     .eq('id', room.id)
 

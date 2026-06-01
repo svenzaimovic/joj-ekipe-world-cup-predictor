@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
     .update({
       current_pick_index: nextPickIndex,
       status: isDraftComplete ? 'completed' : 'active',
+      current_pick_started_at: isDraftComplete ? null : new Date().toISOString(),
     })
     .eq('id', room_id)
 

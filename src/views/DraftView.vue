@@ -92,6 +92,13 @@ async function confirmPick() {
 const hasJoined = computed(() =>
   draftStore.room?.pick_order.includes(auth.user?.id ?? '') ?? false,
 )
+
+const timerInitialSeconds = computed(() => {
+  const room = draftStore.room
+  if (!room?.current_pick_started_at || !room.pick_timer_seconds) return room?.pick_timer_seconds ?? 60
+  const elapsed = Math.floor((Date.now() - new Date(room.current_pick_started_at).getTime()) / 1000)
+  return Math.max(0, room.pick_timer_seconds - elapsed)
+})
 </script>
 
 <template>
@@ -168,7 +175,9 @@ const hasJoined = computed(() =>
       <!-- Status bar -->
       <div class="bg-navy-800 border border-navy-700 rounded-2xl p-4 mb-6 flex items-center gap-6 flex-wrap">
         <PickTimer
+          :key="draftStore.room.current_pick_index"
           :total-seconds="draftStore.room.pick_timer_seconds"
+          :initial-seconds="timerInitialSeconds"
           :active="draftStore.room.status === 'active'"
         />
         <div class="flex-1">
