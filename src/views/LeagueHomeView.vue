@@ -178,6 +178,11 @@ function copyInviteCode() {
             </div>
           </div>
         </div>
+        <p class="text-[11px] text-slate-500 italic mb-6">
+          Tiers are assigned based on FIFA world rankings and recent major tournament performance.
+          Tier 1 represents the outright favourites; Tier 4 the biggest underdogs — teams are seeded
+          before the draft so every player has a fair shot at building a balanced squad.
+        </p>
 
         <ScoringGuide />
       </BaseCard>
