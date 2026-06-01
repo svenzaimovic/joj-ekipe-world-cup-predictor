@@ -1,5 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -15,6 +20,8 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -34,11 +41,11 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!room) {
-    return new Response(JSON.stringify({ error: 'No waiting draft room found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'No waiting draft room found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   if (room.pick_order.length < 2) {
-    return new Response(JSON.stringify({ error: 'Need at least 2 players to start' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Need at least 2 players to start' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   const shuffledOrder = shuffle(room.pick_order)
@@ -53,5 +60,5 @@ Deno.serve(async (req) => {
     })
     .eq('id', room.id)
 
-  return new Response(JSON.stringify({ ok: true, pick_order: shuffledOrder }), { headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ ok: true, pick_order: shuffledOrder }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })

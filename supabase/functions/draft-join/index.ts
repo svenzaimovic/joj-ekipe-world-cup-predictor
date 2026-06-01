@@ -1,11 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -26,7 +33,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!membership) {
-    return new Response(JSON.stringify({ error: 'Not a member of this league' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Not a member of this league' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Find the room for this league and room_type
@@ -38,11 +45,11 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!room) {
-    return new Response(JSON.stringify({ error: 'Draft room not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Draft room not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   if (room.status !== 'waiting') {
-    return new Response(JSON.stringify({ error: 'Draft already started' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Draft already started' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Add user to pick_order if not already in it
@@ -53,5 +60,5 @@ Deno.serve(async (req) => {
       .eq('id', room.id)
   }
 
-  return new Response(JSON.stringify({ ok: true, room_id: room.id }), { headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ ok: true, room_id: room.id }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })

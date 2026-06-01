@@ -1,11 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -24,7 +31,7 @@ Deno.serve(async (req) => {
     .eq('status', 'active')
     .single()
 
-  if (!room) return new Response(JSON.stringify({ error: 'Room not found or not active' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+  if (!room) return new Response(JSON.stringify({ error: 'Room not found or not active' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   const playerCount = room.pick_order.length
   const teamsPerPlayer = Math.floor(48 / playerCount)
@@ -34,7 +41,7 @@ Deno.serve(async (req) => {
   if (pickIndex >= totalPicks) {
     // Draft complete
     await supabase.from('draft_rooms').update({ status: 'completed' }).eq('id', room_id)
-    return new Response(JSON.stringify({ ok: true, draft_complete: true }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ ok: true, draft_complete: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Determine whose turn it is (snake order)
@@ -45,7 +52,7 @@ Deno.serve(async (req) => {
   const expectedUserId = room.pick_order[playerIndex]
 
   if (expectedUserId !== user.id) {
-    return new Response(JSON.stringify({ error: 'Not your turn' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Not your turn' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Check team is still available
@@ -57,7 +64,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (existingPick) {
-    return new Response(JSON.stringify({ error: 'Team already picked' }), { status: 409, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Team already picked' }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Insert pick
@@ -81,5 +88,5 @@ Deno.serve(async (req) => {
     })
     .eq('id', room_id)
 
-  return new Response(JSON.stringify({ ok: true, draft_complete: isDraftComplete }), { headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ ok: true, draft_complete: isDraftComplete }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })
