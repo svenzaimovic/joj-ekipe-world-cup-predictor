@@ -97,15 +97,11 @@ function copyInviteCode() {
     </div>
 
     <!-- Stats row -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="grid grid-cols-2 gap-4 mb-8">
       <BaseCard>
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Your Rank</div>
         <div class="text-3xl font-black text-gold-500">{{ myRank ? `#${myRank}` : '—' }}</div>
         <div class="text-slate-400 text-sm">out of {{ leaderboardStore.entries.length }} players</div>
-      </BaseCard>
-      <BaseCard>
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Predictor Pts</div>
-        <div class="text-3xl font-black text-slate-100">{{ myEntry?.predictor_points ?? 0 }}</div>
       </BaseCard>
       <BaseCard>
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Draft Pts</div>

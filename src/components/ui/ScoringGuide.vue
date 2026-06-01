@@ -6,72 +6,38 @@ const tiers: TeamTier[] = [1, 2, 3, 4]
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <!-- Draft scoring -->
-    <div>
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Draft Points (per match)</h3>
-      <div class="rounded-xl overflow-hidden border border-navy-700">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="bg-navy-900 text-xs text-slate-500 uppercase tracking-wide">
-              <th class="text-left px-3 py-2">Tier</th>
-              <th class="px-3 py-2 text-center">Win</th>
-              <th class="px-3 py-2 text-center">Draw<span class="normal-case text-[10px] ml-0.5">(groups)</span></th>
-              <th class="px-3 py-2 text-center">Loss</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="tier in tiers"
-              :key="tier"
-              class="border-t border-navy-700 bg-navy-800"
-            >
-              <td class="px-3 py-2.5">
-                <div class="flex items-center gap-2">
-                  <div :class="['w-2 h-2 rounded-full shrink-0', TIER_COLORS[tier].dot]" />
-                  <span :class="['font-semibold text-xs', TIER_COLORS[tier].text]">T{{ tier }} · {{ TIER_LABELS[tier] }}</span>
-                </div>
-              </td>
-              <td :class="['px-3 py-2.5 text-center font-black', TIER_COLORS[tier].text]">{{ TIER_WIN_POINTS[tier] }}</td>
-              <td class="px-3 py-2.5 text-center text-slate-400 font-semibold">{{ TIER_DRAW_POINTS[tier] || '—' }}</td>
-              <td class="px-3 py-2.5 text-center text-slate-600">0</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="mt-2 flex flex-col gap-1">
-        <p class="text-[11px] text-slate-500">
-          <span class="text-emerald-400 font-bold">+2 pts</span> — Group stage qualification bonus (top 2 in group)
-        </p>
-        <p class="text-[11px] text-slate-500">Knockout round draws go to penalties → 0 draw pts, win pts go to match winner</p>
-      </div>
+  <div>
+    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Draft Points (per match)</h3>
+    <div class="rounded-xl overflow-hidden border border-navy-700">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-navy-900 text-xs text-slate-500 uppercase tracking-wide">
+            <th class="text-left px-3 py-2">Tier</th>
+            <th class="px-3 py-2 text-center">Win</th>
+            <th class="px-3 py-2 text-center">Draw<span class="normal-case text-[10px] ml-0.5">(groups)</span></th>
+            <th class="px-3 py-2 text-center">Loss</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="tier in tiers" :key="tier" class="border-t border-navy-700 bg-navy-800">
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-2">
+                <div :class="['w-2 h-2 rounded-full shrink-0', TIER_COLORS[tier].dot]" />
+                <span :class="['font-semibold text-xs', TIER_COLORS[tier].text]">T{{ tier }} · {{ TIER_LABELS[tier] }}</span>
+              </div>
+            </td>
+            <td :class="['px-3 py-2.5 text-center font-black', TIER_COLORS[tier].text]">{{ TIER_WIN_POINTS[tier] }}</td>
+            <td class="px-3 py-2.5 text-center text-slate-400 font-semibold">{{ TIER_DRAW_POINTS[tier] || '—' }}</td>
+            <td class="px-3 py-2.5 text-center text-slate-600">0</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-
-    <!-- Predictor scoring -->
-    <div>
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Predictor Points (per match)</h3>
-      <div class="rounded-xl overflow-hidden border border-navy-700">
-        <table class="w-full text-sm">
-          <tbody>
-            <tr class="bg-navy-800">
-              <td class="px-3 py-2.5 text-slate-300">Exact score</td>
-              <td class="px-3 py-2.5 text-right font-black text-gold-500">5 pts</td>
-            </tr>
-            <tr class="bg-navy-800 border-t border-navy-700">
-              <td class="px-3 py-2.5 text-slate-300">Correct result + goal difference</td>
-              <td class="px-3 py-2.5 text-right font-black text-slate-200">3 pts</td>
-            </tr>
-            <tr class="bg-navy-800 border-t border-navy-700">
-              <td class="px-3 py-2.5 text-slate-300">Correct result (W/D/L)</td>
-              <td class="px-3 py-2.5 text-right font-black text-slate-200">2 pts</td>
-            </tr>
-            <tr class="bg-navy-800 border-t border-navy-700">
-              <td class="px-3 py-2.5 text-slate-400">Wrong result</td>
-              <td class="px-3 py-2.5 text-right font-bold text-slate-600">0 pts</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="mt-2 flex flex-col gap-1">
+      <p class="text-[11px] text-slate-500">
+        <span class="text-emerald-400 font-bold">+2 pts</span> — Group stage qualification bonus (top 2 in group)
+      </p>
+      <p class="text-[11px] text-slate-500">Knockout round draws go to penalties → 0 draw pts, win pts go to match winner</p>
     </div>
   </div>
 </template>

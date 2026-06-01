@@ -10,7 +10,6 @@ const route = useRoute()
 const leaderboardStore = useLeaderboardStore()
 const leagueStore = useLeagueStore()
 const auth = useAuthStore()
-const tab = ref<'total' | 'predictor' | 'draft'>('total')
 
 const leagueId = computed(() => route.params.leagueId as string)
 const leaderboardChannel = ref<ReturnType<typeof leaderboardStore.subscribeToUpdates> | null>(null)
@@ -34,18 +33,6 @@ const medals = ['🥇', '🥈', '🥉']
       <p class="text-slate-500 text-sm mt-0.5">{{ leagueStore.activeLeague?.name }}</p>
     </div>
 
-    <!-- Tabs -->
-    <div class="flex gap-1 bg-navy-800 p-1 rounded-xl border border-navy-700 mb-6">
-      <button
-        v-for="t in (['total', 'predictor', 'draft'] as const)"
-        :key="t"
-        :class="['flex-1 py-2 rounded-lg text-sm font-semibold transition-all capitalize', tab === t ? 'bg-gold-500 text-navy-900' : 'text-slate-400 hover:text-slate-100']"
-        @click="tab = t"
-      >
-        {{ t === 'total' ? 'Overall' : t === 'predictor' ? 'Predictor' : 'Draft' }}
-      </button>
-    </div>
-
     <LoadingSpinner v-if="leaderboardStore.loading" class="py-12" />
 
     <div v-else class="flex flex-col gap-2">
@@ -60,24 +47,18 @@ const medals = ['🥇', '🥈', '🥉']
         <div class="w-8 text-center font-black text-lg">
           {{ medals[idx] ?? `#${idx + 1}` }}
         </div>
-        <div class="flex-1">
-          <div class="font-bold text-slate-100 flex items-center gap-2">
-            {{ entry.username }}
-            <span v-if="entry.user_id === auth.user?.id" class="text-xs text-gold-500 font-semibold">(you)</span>
-          </div>
-          <div class="text-xs text-slate-500 flex gap-3 mt-0.5">
-            <span>Predictor: {{ entry.predictor_points }}</span>
-            <span>Draft: {{ entry.draft_points }}</span>
-          </div>
+        <div class="flex-1 font-bold text-slate-100 flex items-center gap-2">
+          {{ entry.username }}
+          <span v-if="entry.user_id === auth.user?.id" class="text-xs text-gold-500 font-semibold">(you)</span>
         </div>
         <div class="text-2xl font-black" :class="idx === 0 ? 'text-gold-500' : 'text-slate-100'">
-          {{ tab === 'total' ? entry.total_points : tab === 'predictor' ? entry.predictor_points : entry.draft_points }}
+          {{ entry.draft_points }}
           <span class="text-xs font-normal text-slate-500">pts</span>
         </div>
       </div>
 
       <div v-if="!leaderboardStore.entries.length" class="text-center text-slate-500 py-12">
-        No scores yet. Predictions will appear here once matches are played.
+        No scores yet — draft points will appear here once matches are played.
       </div>
     </div>
   </div>

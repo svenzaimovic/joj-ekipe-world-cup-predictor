@@ -26,11 +26,6 @@ const router = createRouter({
           component: () => import('@/views/HomeView.vue'),
         },
         {
-          path: 'predictor',
-          name: 'predictor',
-          component: () => import('@/views/PredictorView.vue'),
-        },
-        {
           path: 'profile',
           name: 'profile',
           component: () => import('@/views/ProfileView.vue'),

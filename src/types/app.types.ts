@@ -128,7 +128,6 @@ export interface DraftPick {
 export interface LeaderboardEntry {
   user_id: string
   username: string
-  predictor_points: number
   draft_points: number
   total_points: number
 }

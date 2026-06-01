@@ -19,7 +19,6 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
   function subscribeToUpdates(leagueId: string) {
     return supabase
       .channel('leaderboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, () => fetch(leagueId))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_points' }, () => fetch(leagueId))
       .subscribe()
   }
