@@ -26,7 +26,6 @@ const leagueNavItems = computed(() => {
 
 const globalNavItems = [
   { name: 'home', params: {}, label: 'Home', icon: '🏠' },
-  { name: 'predictor', params: {}, label: 'Predictor', icon: '🎯' },
   { name: 'leagues', params: {}, label: 'Leagues', icon: '🏆' },
 ]
 

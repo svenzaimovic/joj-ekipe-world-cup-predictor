@@ -1,11 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -26,7 +33,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!membership) {
-    return new Response(JSON.stringify({ error: 'Not a member of this league' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Not a member of this league' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Find the practice room for this league
@@ -38,7 +45,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!room) {
-    return new Response(JSON.stringify({ error: 'Practice room not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Practice room not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Delete all picks for this room (room row keeps its ID so realtime subs stay intact)
@@ -55,5 +62,5 @@ Deno.serve(async (req) => {
     })
     .eq('id', room.id)
 
-  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })

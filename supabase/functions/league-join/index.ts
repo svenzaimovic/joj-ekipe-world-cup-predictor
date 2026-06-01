@@ -1,11 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -17,7 +24,7 @@ Deno.serve(async (req) => {
 
   const { invite_code } = await req.json() as { invite_code: string }
   if (!invite_code?.trim()) {
-    return new Response(JSON.stringify({ error: 'Invite code is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Invite code is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Look up league by invite code using service role (user may not be a member yet)
@@ -28,7 +35,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (!league) {
-    return new Response(JSON.stringify({ error: 'Invalid invite code' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Invalid invite code' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Check if already a member
@@ -42,7 +49,7 @@ Deno.serve(async (req) => {
   if (existing) {
     return new Response(
       JSON.stringify({ ok: true, league_id: league.id, league_name: league.name, already_member: true }),
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 
@@ -50,6 +57,6 @@ Deno.serve(async (req) => {
 
   return new Response(
     JSON.stringify({ ok: true, league_id: league.id, league_name: league.name, already_member: false }),
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
 })

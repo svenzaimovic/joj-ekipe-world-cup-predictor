@@ -2,38 +2,23 @@
 import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
-import { useMatchesStore } from '@/stores/matches.store'
 import { useLeaderboardStore } from '@/stores/leaderboard.store'
 import { useLeagueStore } from '@/stores/league.store'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-dayjs.extend(relativeTime)
 
 const auth = useAuthStore()
-const matchesStore = useMatchesStore()
 const leaderboardStore = useLeaderboardStore()
 const leagueStore = useLeagueStore()
 const router = useRouter()
 
 onMounted(async () => {
-  await Promise.all([
-    matchesStore.fetchAll(),
-    leagueStore.fetchMyLeagues(),
-  ])
-  // Load leaderboard for first league if available
+  await leagueStore.fetchMyLeagues()
   const firstLeague = leagueStore.myLeagues[0]
   if (firstLeague) {
     await leaderboardStore.fetch(firstLeague.id)
   }
 })
-
-const nextMatches = computed(() =>
-  matchesStore.matches
-    .filter((m) => m.status === 'scheduled' && m.home_team && m.away_team)
-    .slice(0, 3),
-)
 
 const firstLeague = computed(() => leagueStore.myLeagues[0] ?? null)
 
@@ -70,8 +55,8 @@ const myEntry = computed(() =>
       </BaseCard>
     </div>
 
-    <!-- Stats (only when in a league) -->
-    <div v-if="firstLeague" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <!-- Stats -->
+    <div v-if="firstLeague" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
       <BaseCard>
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
           Your Rank
@@ -81,21 +66,17 @@ const myEntry = computed(() =>
         <div class="text-slate-400 text-sm">out of {{ leaderboardStore.entries.length }} players</div>
       </BaseCard>
       <BaseCard>
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Predictor Pts</div>
-        <div class="text-3xl font-black text-slate-100">{{ myEntry?.predictor_points ?? 0 }}</div>
-      </BaseCard>
-      <BaseCard>
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Draft Pts</div>
         <div class="text-3xl font-black text-slate-100">{{ myEntry?.draft_points ?? 0 }}</div>
       </BaseCard>
     </div>
 
-    <!-- League shortcuts -->
+    <!-- League shortcuts (when in multiple leagues) -->
     <div v-if="leagueStore.myLeagues.length > 1" class="mb-8">
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">My Leagues</h2>
       <div class="flex flex-col gap-2">
         <button
-          v-for="league in leagueStore.myLeagues.slice(0, 3)"
+          v-for="league in leagueStore.myLeagues"
           :key="league.id"
           class="text-left bg-navy-800 border border-navy-700 rounded-xl p-4 flex items-center justify-between hover:border-gold-500/40 transition-all"
           @click="router.push({ name: 'league-home', params: { leagueId: league.id } })"
@@ -106,26 +87,24 @@ const myEntry = computed(() =>
       </div>
     </div>
 
-    <!-- Next matches -->
-    <div>
-      <h2 class="text-lg font-bold text-slate-100 mb-3">Upcoming Matches</h2>
-      <div v-if="nextMatches.length" class="flex flex-col gap-3">
-        <BaseCard v-for="match in nextMatches" :key="match.id">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3 flex-1">
-              <span class="font-semibold text-slate-100">{{ match.home_team?.name }}</span>
-            </div>
-            <div class="text-center px-4">
-              <div class="text-gold-500 font-bold text-xs">{{ dayjs(match.match_date).fromNow() }}</div>
-              <div class="text-slate-400 text-xs">{{ dayjs(match.match_date).format('MMM D, HH:mm') }}</div>
-            </div>
-            <div class="flex items-center gap-3 flex-1 justify-end">
-              <span class="font-semibold text-slate-100">{{ match.away_team?.name }}</span>
-            </div>
-          </div>
-        </BaseCard>
-      </div>
-      <div v-else class="text-slate-500 text-sm">No upcoming matches.</div>
+    <!-- Single league shortcut -->
+    <div v-else-if="firstLeague" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <button
+        class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
+        @click="router.push({ name: 'league-draft', params: { leagueId: firstLeague.id } })"
+      >
+        <div class="text-3xl mb-2">🎲</div>
+        <div class="font-bold text-slate-100">Draft</div>
+        <div class="text-xs text-slate-500 mt-0.5">Pick your teams</div>
+      </button>
+      <button
+        class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
+        @click="router.push({ name: 'league-leaderboard', params: { leagueId: firstLeague.id } })"
+      >
+        <div class="text-3xl mb-2">🏆</div>
+        <div class="font-bold text-slate-100">Standings</div>
+        <div class="text-xs text-slate-500 mt-0.5">League leaderboard</div>
+      </button>
     </div>
   </div>
 </template>

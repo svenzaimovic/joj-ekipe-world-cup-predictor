@@ -1,5 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -16,6 +21,8 @@ function generateCode(): string {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
@@ -27,7 +34,7 @@ Deno.serve(async (req) => {
 
   const { name } = await req.json() as { name: string }
   if (!name?.trim()) {
-    return new Response(JSON.stringify({ error: 'League name is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'League name is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Generate unique invite code with up to 5 retries
@@ -45,7 +52,7 @@ Deno.serve(async (req) => {
     }
   }
   if (!inviteCode) {
-    return new Response(JSON.stringify({ error: 'Failed to generate invite code, try again' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Failed to generate invite code, try again' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Create league
@@ -56,7 +63,7 @@ Deno.serve(async (req) => {
     .single()
 
   if (leagueError || !league) {
-    return new Response(JSON.stringify({ error: 'Failed to create league' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Failed to create league' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   // Add creator as member
@@ -70,6 +77,6 @@ Deno.serve(async (req) => {
 
   return new Response(
     JSON.stringify({ ok: true, league_id: league.id, invite_code: inviteCode }),
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
 })
