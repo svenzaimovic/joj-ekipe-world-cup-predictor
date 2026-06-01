@@ -156,22 +156,25 @@ function copyInviteCode() {
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Teams &amp; Points</h2>
       <BaseCard>
         <!-- Tier grid: 4 columns on desktop, 2 on mobile -->
-        <div v-if="teams.length" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-navy-700">
+        <div v-if="teams.length" class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0 mb-6 pb-6 border-b border-navy-700">
           <div v-for="group in tierGroups" :key="group.tier">
-            <div class="flex items-center gap-1.5 mb-2">
+            <div class="flex items-center gap-1.5 mb-2.5">
               <div :class="['w-2 h-2 rounded-full shrink-0', TIER_COLORS[group.tier].dot]" />
               <span :class="['text-xs font-bold uppercase tracking-wide', TIER_COLORS[group.tier].text]">
                 T{{ group.tier }} · {{ TIER_LABELS[group.tier] }}
               </span>
             </div>
-            <div class="flex flex-wrap gap-1">
-              <span
-                v-for="team in group.teams"
-                :key="team.id"
-                :class="['text-[11px] px-1.5 py-0.5 rounded font-medium text-slate-300', TIER_COLORS[group.tier].bg]"
-              >
-                {{ team.name }}
-              </span>
+            <div class="flex flex-col gap-1">
+              <div v-for="team in group.teams" :key="team.id" class="flex items-center gap-1.5">
+                <img
+                  v-if="team.flag_url"
+                  :src="team.flag_url"
+                  :alt="team.name"
+                  class="w-5 h-3.5 object-cover rounded-sm shrink-0"
+                />
+                <div v-else :class="['text-[9px] font-bold w-5 text-center shrink-0', TIER_COLORS[group.tier].text]">{{ team.code }}</div>
+                <span class="text-xs text-slate-300 truncate">{{ team.name }}</span>
+              </div>
             </div>
           </div>
         </div>
