@@ -61,6 +61,15 @@ export const useLeagueStore = defineStore('league', () => {
     return data as { league_id: string; league_name: string }
   }
 
+  async function deleteLeague(leagueId: string): Promise<void> {
+    const { error } = await supabase.functions.invoke('league-delete', {
+      body: { league_id: leagueId },
+    })
+    if (error) throw error
+    myLeagues.value = myLeagues.value.filter((l) => l.id !== leagueId)
+    if (activeLeague.value?.id === leagueId) activeLeague.value = null
+  }
+
   function getLeagueMemberUserIds(leagueId: string): Promise<string[]> {
     return supabase
       .from('league_members')
@@ -71,6 +80,6 @@ export const useLeagueStore = defineStore('league', () => {
 
   return {
     myLeagues, activeLeague, loading,
-    fetchMyLeagues, setActiveLeague, createLeague, joinLeague, getLeagueMemberUserIds,
+    fetchMyLeagues, setActiveLeague, createLeague, joinLeague, deleteLeague, getLeagueMemberUserIds,
   }
 })

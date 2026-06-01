@@ -6,6 +6,7 @@ import { useLeaderboardStore } from '@/stores/leaderboard.store'
 import { useAuthStore } from '@/stores/auth.store'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
@@ -21,6 +22,8 @@ const leagueId = computed(() => route.params.leagueId as string)
 const leaderboardChannel = ref<ReturnType<typeof leaderboardStore.subscribeToUpdates> | null>(null)
 const memberUserIds = ref<string[]>([])
 const membersLoading = ref(false)
+const showDeleteModal = ref(false)
+const deleteLoading = ref(false)
 
 onMounted(async () => {
   await Promise.all([
@@ -38,6 +41,20 @@ async function loadMembers() {
   membersLoading.value = true
   memberUserIds.value = await leagueStore.getLeagueMemberUserIds(leagueId.value)
   membersLoading.value = false
+}
+
+const isOwner = computed(() => league.value?.owner_id === auth.user?.id)
+
+async function deleteLeague() {
+  deleteLoading.value = true
+  try {
+    await leagueStore.deleteLeague(leagueId.value)
+    showDeleteModal.value = false
+    router.replace({ name: 'leagues' })
+  } catch {
+    toast?.value?.add('Failed to delete league.', 'error')
+  }
+  deleteLoading.value = false
 }
 
 const myRank = computed(() => {
@@ -60,13 +77,22 @@ function copyInviteCode() {
 
 <template>
   <div class="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">
-    <div class="mb-6">
-      <h1 class="text-2xl font-black text-slate-100">{{ league?.name }}</h1>
-      <div class="flex items-center gap-2 mt-1">
-        <span class="text-slate-500 text-sm">Invite code:</span>
-        <span class="font-mono text-gold-400 font-bold tracking-widest">{{ league?.invite_code }}</span>
-        <button class="text-slate-500 hover:text-gold-400 transition-colors text-sm" @click="copyInviteCode">📋</button>
+    <div class="flex items-start justify-between mb-6 gap-4">
+      <div>
+        <h1 class="text-2xl font-black text-slate-100">{{ league?.name }}</h1>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-slate-500 text-sm">Invite code:</span>
+          <span class="font-mono text-gold-400 font-bold tracking-widest">{{ league?.invite_code }}</span>
+          <button class="text-slate-500 hover:text-gold-400 transition-colors text-sm" @click="copyInviteCode">📋</button>
+        </div>
       </div>
+      <button
+        v-if="isOwner"
+        class="text-xs text-slate-500 hover:text-red-400 transition-colors border border-navy-700 hover:border-red-500/40 rounded-lg px-3 py-1.5 shrink-0"
+        @click="showDeleteModal = true"
+      >
+        Delete league
+      </button>
     </div>
 
     <!-- Stats row -->
@@ -143,4 +169,20 @@ function copyInviteCode() {
       </div>
     </div>
   </div>
+
+  <!-- Delete confirmation modal -->
+  <BaseModal v-if="showDeleteModal" title="Delete League" @close="showDeleteModal = false">
+    <div class="flex flex-col gap-4">
+      <p class="text-slate-300">
+        Are you sure you want to delete <strong class="text-slate-100">{{ league?.name }}</strong>?
+        This will permanently remove all picks, members, and draft data.
+      </p>
+      <div class="flex gap-3">
+        <BaseButton variant="secondary" class="flex-1" @click="showDeleteModal = false">Cancel</BaseButton>
+        <BaseButton :loading="deleteLoading" class="flex-1 !bg-red-600 hover:!bg-red-500" @click="deleteLeague">
+          Delete
+        </BaseButton>
+      </div>
+    </div>
+  </BaseModal>
 </template>
