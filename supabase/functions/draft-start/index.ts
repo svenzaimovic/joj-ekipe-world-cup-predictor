@@ -48,6 +48,17 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Need at least 2 players to start' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
+  // Only the league owner can start the draft
+  const { data: league } = await supabase
+    .from('leagues')
+    .select('owner_id')
+    .eq('id', room.league_id)
+    .single()
+
+  if (!league || league.owner_id !== user.id) {
+    return new Response(JSON.stringify({ error: 'Only the league owner can start the draft' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+
   const shuffledOrder = shuffle(room.pick_order)
 
   const now = new Date().toISOString()

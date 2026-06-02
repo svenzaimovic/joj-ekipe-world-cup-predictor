@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, computed, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDraftStore } from '@/stores/draft.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { useLeagueStore } from '@/stores/league.store'
 import TeamGrid from '@/components/draft/TeamGrid.vue'
 import DraftBoard from '@/components/draft/DraftBoard.vue'
 import PickTimer from '@/components/draft/PickTimer.vue'
@@ -21,6 +22,9 @@ const props = withDefaults(defineProps<{ isPractice?: boolean }>(), { isPractice
 const route = useRoute()
 const draftStore = useDraftStore()
 const auth = useAuthStore()
+const leagueStore = useLeagueStore()
+
+const isLeagueOwner = computed(() => leagueStore.activeLeague?.owner_id === auth.user?.id)
 const toast = inject<Ref<InstanceType<typeof BaseToast> | null>>('toast')
 
 const leagueId = computed(() => route.params.leagueId as string)
@@ -159,7 +163,7 @@ const timerInitialSeconds = computed(() => {
               Join {{ isPractice ? 'Practice' : 'Draft' }} Room
             </BaseButton>
             <BaseButton
-              v-if="hasJoined && (draftStore.room?.pick_order.length ?? 0) >= 2"
+              v-if="isLeagueOwner && (draftStore.room?.pick_order.length ?? 0) >= 2"
               variant="secondary"
               size="lg"
               class="w-full"
@@ -167,6 +171,9 @@ const timerInitialSeconds = computed(() => {
             >
               Start {{ isPractice ? 'Practice' : 'Draft' }}
             </BaseButton>
+            <p v-else-if="!isLeagueOwner && (draftStore.room?.pick_order.length ?? 0) >= 2" class="text-slate-500 text-sm text-center">
+              Waiting for the league owner to start…
+            </p>
             <p v-if="hasJoined" class="text-emerald-400 text-sm">✓ You're in the lobby</p>
           </div>
         </div>
