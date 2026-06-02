@@ -11,7 +11,6 @@ const leagueStore = useLeagueStore()
 const route = useRoute()
 const router = useRouter()
 
-// Detect if we're inside a specific league
 const leagueId = computed(() => route.params.leagueId as string | undefined)
 
 const leagueNavItems = computed(() => {
@@ -66,12 +65,21 @@ async function logout() {
         <span class="text-xs">{{ item.label }}</span>
       </RouterLink>
     </template>
+    <!-- Profile always visible on mobile -->
+    <RouterLink
+      to="/profile"
+      class="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-gold-400 transition-colors"
+      active-class="text-gold-500"
+    >
+      <span class="text-xl">👤</span>
+      <span class="text-xs">Profile</span>
+    </RouterLink>
   </nav>
 
-  <!-- Desktop sidebar nav -->
-  <nav v-else class="w-56 bg-navy-800 border-r border-navy-700 flex flex-col py-6 px-3 gap-1 min-h-0">
+  <!-- Desktop sidebar -->
+  <nav v-else class="w-56 bg-navy-800 border-r border-navy-700 flex flex-col py-6 px-3 min-h-screen">
     <!-- Logo -->
-    <RouterLink to="/" class="flex justify-center px-2 mb-4">
+    <RouterLink to="/" class="flex justify-center px-2 mb-5">
       <img src="@/assets/logo.png" alt="WC Draft 2026" class="w-36" />
     </RouterLink>
 
@@ -81,6 +89,7 @@ async function logout() {
       <div class="font-bold text-gold-400 text-sm truncate">{{ leagueStore.activeLeague.name }}</div>
     </div>
 
+    <!-- League nav -->
     <template v-if="leagueId">
       <RouterLink
         v-for="item in leagueNavItems"
@@ -95,6 +104,7 @@ async function logout() {
       <div class="border-t border-navy-700 my-2" />
     </template>
 
+    <!-- Global nav -->
     <RouterLink
       v-for="item in globalNavItems"
       :key="item.name"
@@ -109,21 +119,29 @@ async function logout() {
 
     <div class="flex-1" />
 
-    <RouterLink
-      to="/profile"
-      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium"
-      active-class="bg-gold-500/10 text-gold-400 border border-gold-500/20"
-    >
-      <span class="text-lg">👤</span>
-      Profile
-    </RouterLink>
+    <!-- User block -->
+    <div class="border-t border-navy-700 pt-3 mt-2 flex flex-col gap-1">
+      <RouterLink
+        to="/profile"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-700 transition-all group"
+        active-class="bg-gold-500/10"
+      >
+        <div class="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-navy-900 font-black text-sm shrink-0">
+          {{ auth.profile?.username?.[0]?.toUpperCase() ?? '?' }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-slate-100 truncate">{{ auth.profile?.username ?? 'Profile' }}</div>
+          <div class="text-xs text-slate-500">View profile</div>
+        </div>
+      </RouterLink>
 
-    <button
-      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-wc-red-500 hover:bg-navy-700 transition-all text-sm font-medium w-full"
-      @click="logout"
-    >
-      <span class="text-lg">🚪</span>
-      Sign out
-    </button>
+      <button
+        class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-navy-700 transition-all text-sm font-medium w-full"
+        @click="logout"
+      >
+        <span class="text-lg">🚪</span>
+        Sign out
+      </button>
+    </div>
   </nav>
 </template>
