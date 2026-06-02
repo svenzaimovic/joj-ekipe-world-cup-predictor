@@ -30,13 +30,19 @@ const tiers: TeamTier[] = [1, 2, 3, 4]
             <td class="px-3 py-2.5 text-center text-slate-400 font-semibold">{{ TIER_DRAW_POINTS[tier] || '—' }}</td>
             <td class="px-3 py-2.5 text-center text-slate-600">0</td>
           </tr>
+          <!-- Qualification bonus row -->
+          <tr class="border-t-2 border-navy-600 bg-navy-800/60">
+            <td class="px-3 py-2.5">
+              <span class="text-xs text-slate-400">Group stage qualification <span class="text-slate-500 text-[10px]">(top 2 in group)</span></span>
+            </td>
+            <td class="px-3 py-2.5 text-center font-black text-emerald-400">+2</td>
+            <td class="px-3 py-2.5 text-center text-slate-600">—</td>
+            <td class="px-3 py-2.5 text-center text-slate-600">—</td>
+          </tr>
         </tbody>
       </table>
     </div>
     <div class="mt-2 flex flex-col gap-1">
-      <p class="text-[11px] text-slate-500">
-        <span class="text-emerald-400 font-bold">+2 pts</span> — Group stage qualification bonus (top 2 in group)
-      </p>
       <p class="text-[11px] text-slate-500">Knockout round draws go to penalties → 0 draw pts, win pts go to match winner</p>
       <p class="text-[11px] text-slate-500 italic mt-1">
         Points scale inversely with tier — picking a lower-ranked team is riskier, so each win is worth more. Favourites earn steadily; underdogs can swing the standings with a single result.
