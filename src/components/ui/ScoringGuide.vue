@@ -16,6 +16,7 @@ const tiers: TeamTier[] = [1, 2, 3, 4]
             <th class="px-3 py-2 text-center">Win</th>
             <th class="px-3 py-2 text-center">Draw<span class="normal-case text-[10px] ml-0.5">(groups)</span></th>
             <th class="px-3 py-2 text-center">Loss</th>
+            <th class="px-3 py-2 text-center">Qualify<span class="normal-case text-[10px] ml-0.5">(group)</span></th>
           </tr>
         </thead>
         <tbody>
@@ -29,15 +30,7 @@ const tiers: TeamTier[] = [1, 2, 3, 4]
             <td :class="['px-3 py-2.5 text-center font-black', TIER_COLORS[tier].text]">{{ TIER_WIN_POINTS[tier] }}</td>
             <td class="px-3 py-2.5 text-center text-slate-400 font-semibold">{{ TIER_DRAW_POINTS[tier] || '—' }}</td>
             <td class="px-3 py-2.5 text-center text-slate-600">0</td>
-          </tr>
-          <!-- Qualification bonus row -->
-          <tr class="border-t-2 border-navy-600 bg-navy-800/60">
-            <td class="px-3 py-2.5">
-              <span class="text-xs text-slate-400">Group stage qualification <span class="text-slate-500 text-[10px]">(top 2 in group)</span></span>
-            </td>
             <td class="px-3 py-2.5 text-center font-black text-emerald-400">+2</td>
-            <td class="px-3 py-2.5 text-center text-slate-600">—</td>
-            <td class="px-3 py-2.5 text-center text-slate-600">—</td>
           </tr>
         </tbody>
       </table>
