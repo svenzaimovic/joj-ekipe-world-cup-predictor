@@ -34,7 +34,7 @@ async function submit() {
   try {
     await auth.updatePassword(password.value)
     done.value = true
-    setTimeout(() => router.push('/'), 1500)
+    setTimeout(() => router.push('/home'), 1500)
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to update password'
   } finally {
@@ -46,10 +46,8 @@ async function submit() {
 <template>
   <div class="min-h-screen bg-navy-900 flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
-      <div class="text-center mb-8">
-        <div class="text-6xl mb-4">⚽</div>
-        <h1 class="text-3xl font-black text-slate-100">World Cup <span class="text-gold-500">2026</span></h1>
-        <p class="text-slate-400 mt-1 text-sm">Predictor & Draft</p>
+      <div class="flex justify-center mb-8">
+        <img src="@/assets/logo.png" alt="WC Draft 2026" class="w-64" />
       </div>
 
       <div class="bg-navy-800 rounded-2xl border border-navy-700 p-6 shadow-2xl">

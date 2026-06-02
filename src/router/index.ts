@@ -4,6 +4,12 @@ import { useAuthStore } from '@/stores/auth.store'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // Public landing page
+    {
+      path: '/',
+      name: 'landing',
+      component: () => import('@/views/LandingView.vue'),
+    },
     {
       path: '/login',
       name: 'login',
@@ -16,7 +22,7 @@ const router = createRouter({
       component: () => import('@/views/ResetPasswordView.vue'),
     },
     {
-      path: '/',
+      path: '/home',
       component: () => import('@/layouts/AppLayout.vue'),
       meta: { requiresAuth: true },
       children: [
@@ -26,27 +32,27 @@ const router = createRouter({
           component: () => import('@/views/HomeView.vue'),
         },
         {
-          path: 'profile',
+          path: '/profile',
           name: 'profile',
           component: () => import('@/views/ProfileView.vue'),
         },
         // Legacy routes — redirect to leagues list
         {
-          path: 'draft',
+          path: '/draft',
           redirect: { name: 'leagues' },
         },
         {
-          path: 'leaderboard',
+          path: '/leaderboard',
           redirect: { name: 'leagues' },
         },
         // Leagues
         {
-          path: 'leagues',
+          path: '/leagues',
           name: 'leagues',
           component: () => import('@/views/LeagueListView.vue'),
         },
         {
-          path: 'leagues/:leagueId',
+          path: '/leagues/:leagueId',
           component: () => import('@/layouts/LeagueLayout.vue'),
           children: [
             {
@@ -97,7 +103,8 @@ router.beforeEach(async (to) => {
     return { name: 'login' }
   }
 
-  if (to.meta.requiresGuest && authStore.user) {
+  // Authenticated users visiting / or /login land on /home
+  if ((to.name === 'landing' || to.meta.requiresGuest) && authStore.user) {
     return { name: 'home' }
   }
 })
