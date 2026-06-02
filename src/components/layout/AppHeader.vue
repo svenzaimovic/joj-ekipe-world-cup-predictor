@@ -6,12 +6,8 @@ const auth = useAuthStore()
 
 <template>
   <header class="bg-navy-800 border-b border-navy-700 px-4 py-3 flex items-center justify-between">
-    <RouterLink to="/" class="flex items-center gap-2">
-      <span class="text-2xl">⚽</span>
-      <div class="leading-tight">
-        <div class="text-gold-500 font-black text-sm tracking-widest uppercase">World Cup</div>
-        <div class="text-slate-100 font-bold text-lg leading-none">2026</div>
-      </div>
+    <RouterLink to="/">
+      <img src="@/assets/logo.png" alt="WC Draft 2026" class="h-9" />
     </RouterLink>
 
     <div class="flex items-center gap-3">

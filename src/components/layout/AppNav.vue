@@ -70,6 +70,11 @@ async function logout() {
 
   <!-- Desktop sidebar nav -->
   <nav v-else class="w-56 bg-navy-800 border-r border-navy-700 flex flex-col py-6 px-3 gap-1 min-h-0">
+    <!-- Logo -->
+    <RouterLink to="/" class="flex justify-center px-2 mb-4">
+      <img src="@/assets/logo.png" alt="WC Draft 2026" class="w-36" />
+    </RouterLink>
+
     <!-- League context header -->
     <div v-if="leagueId && leagueStore.activeLeague" class="px-3 py-2 mb-2 border-b border-navy-700">
       <div class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">League</div>
