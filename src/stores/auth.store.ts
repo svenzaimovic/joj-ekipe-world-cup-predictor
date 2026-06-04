@@ -56,6 +56,16 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw error
   }
 
+  async function loginWithOAuth(provider: 'google' | 'facebook') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/home`,
+      },
+    })
+    if (error) throw error
+  }
+
   async function signup(email: string, password: string, username: string) {
     loading.value = true
     const { error } = await supabase.auth.signUp({
@@ -94,5 +104,5 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw error
   }
 
-  return { user, profile, initialized, loading, isRecovering, init, login, signup, logout, updateUsername, fetchProfile, updatePassword, sendPasswordReset }
+  return { user, profile, initialized, loading, isRecovering, init, login, loginWithOAuth, signup, logout, updateUsername, fetchProfile, updatePassword, sendPasswordReset }
 })
