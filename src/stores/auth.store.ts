@@ -20,14 +20,15 @@ export const useAuthStore = defineStore('auth', () => {
       if (event === 'INITIAL_SESSION') {
         // Supabase has determined the initial session — this is the
         // authoritative source of truth on first load.
+        user.value = session?.user ?? null
+        // Mark initialized immediately so the router guard unblocks without
+        // waiting for the profile fetch round-trip.
+        initialized.value = true
         if (session?.user) {
-          user.value = session.user
-          await fetchProfile()
+          fetchProfile().catch((e) => console.warn('[auth] fetchProfile error:', e))
         } else {
-          user.value = null
           profile.value = null
         }
-        initialized.value = true
         return
       }
 
@@ -75,9 +76,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string) {
     loading.value = true
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    loading.value = false
-    if (error) throw error
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      // Set user immediately from the response so the router guard sees it
+      // when LoginView calls router.push('/home') — don't wait for onAuthStateChange.
+      user.value = data.user
+      fetchProfile().catch((e) => console.warn('[auth] fetchProfile error:', e))
+    } finally {
+      loading.value = false
+    }
   }
 
   async function loginWithOAuth(provider: 'google' | 'facebook') {
