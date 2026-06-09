@@ -85,7 +85,11 @@ export const useAuthStore = defineStore('auth', () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/home`,
+        // Redirect to our dedicated callback route. The guard on /home and /login
+        // run synchronously before the PKCE code exchange completes, so they
+        // would bounce an unauthenticated user away. /auth/callback is unprotected
+        // and waits for the exchange before navigating.
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     if (error) throw error

@@ -22,6 +22,14 @@ const router = createRouter({
       component: () => import('@/views/ResetPasswordView.vue'),
     },
     {
+      // OAuth providers (Google etc.) redirect back here after authentication.
+      // Not protected — the guard must not interfere while the PKCE code
+      // exchange is still in flight.
+      path: '/auth/callback',
+      name: 'auth-callback',
+      component: () => import('@/views/AuthCallbackView.vue'),
+    },
+    {
       path: '/home',
       component: () => import('@/layouts/AppLayout.vue'),
       meta: { requiresAuth: true },
