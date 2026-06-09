@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, inject } from 'vue'
+import { onMounted, onUnmounted, ref, computed, inject, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDraftStore } from '@/stores/draft.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -38,6 +38,23 @@ onMounted(async () => {
   await draftStore.fetchAll(leagueId.value, roomType.value)
   realtimeChannel.value = draftStore.subscribeToRealtime()
 })
+
+// ── Auto-pick ─────────────────────────────────────────────────────────────────
+// Called by PickTimer when the countdown reaches zero.
+// Each client fires this, but only the client whose turn it is actually picks.
+async function onTimerExpire() {
+  if (!draftStore.isMyTurn || draftStore.isDraftComplete) return
+  const available = draftStore.availableTeams
+  if (!available.length) return
+  // Pick a random available team
+  const randomTeam = available[Math.floor(Math.random() * available.length)]
+  try {
+    await draftStore.makePick(randomTeam.id)
+    toast?.value?.add(`Time's up! Auto-picked ${randomTeam.name}`, 'info')
+  } catch {
+    // Another client may have already advanced the pick index — silently ignore
+  }
+}
 
 onUnmounted(() => {
   realtimeChannel.value?.unsubscribe()
@@ -100,12 +117,26 @@ const hasJoined = computed(() =>
 
 const showScoringGuide = ref(false)
 
-const timerInitialSeconds = computed(() => {
-  const room = draftStore.room
-  if (!room?.current_pick_started_at || !room.pick_timer_seconds) return room?.pick_timer_seconds ?? 60
-  const elapsed = Math.floor((Date.now() - new Date(room.current_pick_started_at).getTime()) / 1000)
-  return Math.max(0, room.pick_timer_seconds - elapsed)
-})
+// ── Timer sync ────────────────────────────────────────────────────────────────
+// timerInitialSeconds is a plain ref so Date.now() is sampled at the moment the
+// pick slot actually changes (not lazily by Vue's computed tracking). On page
+// refresh the watcher fires as soon as the room data arrives from fetchAll,
+// giving an accurate "time remaining" even after a slow page load.
+const timerInitialSeconds = ref(60)
+
+watch(
+  () => [draftStore.room?.current_pick_index, draftStore.room?.current_pick_started_at] as const,
+  ([, startedAt]) => {
+    const room = draftStore.room
+    if (!room || !startedAt || !room.pick_timer_seconds) {
+      timerInitialSeconds.value = room?.pick_timer_seconds ?? 60
+      return
+    }
+    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+    timerInitialSeconds.value = Math.max(0, room.pick_timer_seconds - elapsed)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -189,6 +220,7 @@ const timerInitialSeconds = computed(() => {
           :total-seconds="draftStore.room.pick_timer_seconds"
           :initial-seconds="timerInitialSeconds"
           :active="draftStore.room.status === 'active'"
+          @expire="onTimerExpire"
         />
         <div class="flex-1">
           <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Now picking</div>

@@ -142,27 +142,36 @@ export interface Database {
       draft_rooms: {
         Row: {
           id: string
+          league_id: string | null
+          room_type: string
           status: string
           pick_order: string[]
           current_pick_index: number
+          current_pick_started_at: string | null
           pick_timer_seconds: number
           created_at: string
           started_at: string | null
         }
         Insert: {
           id?: string
+          league_id?: string | null
+          room_type?: string
           status?: string
           pick_order?: string[]
           current_pick_index?: number
+          current_pick_started_at?: string | null
           pick_timer_seconds?: number
           created_at?: string
           started_at?: string | null
         }
         Update: {
           id?: string
+          league_id?: string | null
+          room_type?: string
           status?: string
           pick_order?: string[]
           current_pick_index?: number
+          current_pick_started_at?: string | null
           pick_timer_seconds?: number
           created_at?: string
           started_at?: string | null
