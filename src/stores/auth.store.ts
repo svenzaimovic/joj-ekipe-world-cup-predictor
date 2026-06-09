@@ -12,23 +12,31 @@ export const useAuthStore = defineStore('auth', () => {
   const isRecovering = ref(false)
 
   async function init() {
-    try {
-      const { data } = await supabase.auth.getSession()
-      user.value = data.session?.user ?? null
-      if (user.value) await fetchProfile()
-    } catch (e) {
-      console.warn('Failed to get session:', e)
-      user.value = null
-    } finally {
-      initialized.value = true
-    }
-
+    // Register the listener FIRST so we never miss auth events that fire
+    // while getSession() is still in-flight (e.g. the user logs in during a
+    // slow cold-start). INITIAL_SESSION fires once the auth client has
+    // determined the starting state — we use it to mark ourselves ready.
     supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        // Supabase has determined the initial session — this is the
+        // authoritative source of truth on first load.
+        if (session?.user) {
+          user.value = session.user
+          await fetchProfile()
+        } else {
+          user.value = null
+          profile.value = null
+        }
+        initialized.value = true
+        return
+      }
+
       if (event === 'PASSWORD_RECOVERY') {
         isRecovering.value = true
         user.value = session?.user ?? null
         return
       }
+
       isRecovering.value = false
       user.value = session?.user ?? null
       if (user.value) {
@@ -37,6 +45,22 @@ export const useAuthStore = defineStore('auth', () => {
         profile.value = null
       }
     })
+
+    // getSession() is kept as a fallback: if INITIAL_SESSION fires first
+    // (which it usually does) this becomes a no-op; if not, it ensures we
+    // always set initialized even if the listener never fires.
+    try {
+      const { data } = await supabase.auth.getSession()
+      if (!initialized.value) {
+        user.value = data.session?.user ?? null
+        if (user.value) await fetchProfile()
+      }
+    } catch (e) {
+      console.warn('Failed to get session:', e)
+      if (!initialized.value) user.value = null
+    } finally {
+      initialized.value = true
+    }
   }
 
   async function fetchProfile() {

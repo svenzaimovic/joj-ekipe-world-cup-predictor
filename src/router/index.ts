@@ -112,7 +112,7 @@ router.beforeEach(async (to) => {
             console.warn('[auth] init timed out — unblocking navigation')
             authStore.initialized = true
             resolve()
-          }, 5000),
+          }, 3000),
         ),
       ])
     } catch {
