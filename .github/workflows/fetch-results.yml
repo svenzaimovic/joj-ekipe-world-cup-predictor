@@ -1,0 +1,21 @@
+name: Fetch Match Results
+
+on:
+  schedule:
+    # Runs every 5 minutes during tournament hours (10:00–23:59 UTC)
+    # Group stage matches kick off between 17:00–23:00 UTC
+    - cron: '*/5 10-23 * * *'
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call fetch-results edge function
+        run: |
+          curl -s -o response.json -w "%{http_code}" \
+            -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/fetch-results" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          cat response.json
