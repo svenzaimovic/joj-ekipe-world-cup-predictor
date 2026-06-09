@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { Component } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLeagueStore } from '@/stores/league.store'
 import { useRoute, useRouter } from 'vue-router'
+import { Home, Shuffle, FlaskConical, Calendar, Star, Trophy, LayoutGrid, User, LogOut } from 'lucide-vue-next'
 
 defineProps<{ mobile?: boolean }>()
 
@@ -13,21 +15,21 @@ const router = useRouter()
 
 const leagueId = computed(() => route.params.leagueId as string | undefined)
 
-const leagueNavItems = computed(() => {
+const leagueNavItems = computed<{ name: string; params: object; label: string; icon: Component }[]>(() => {
   if (!leagueId.value) return []
   return [
-    { name: 'league-home', params: { leagueId: leagueId.value }, label: 'League', icon: '🏠' },
-    { name: 'league-draft', params: { leagueId: leagueId.value }, label: 'Draft', icon: '🎲' },
-    { name: 'league-draft-practice', params: { leagueId: leagueId.value }, label: 'Practice', icon: '🧪' },
-    { name: 'league-fixtures', params: { leagueId: leagueId.value }, label: 'Fixtures', icon: '📅' },
-    { name: 'league-my-teams', params: { leagueId: leagueId.value }, label: 'My Teams', icon: '⭐' },
-    { name: 'league-leaderboard', params: { leagueId: leagueId.value }, label: 'Standings', icon: '🏆' },
+    { name: 'league-home', params: { leagueId: leagueId.value }, label: 'League', icon: Home },
+    { name: 'league-draft', params: { leagueId: leagueId.value }, label: 'Draft', icon: Shuffle },
+    { name: 'league-draft-practice', params: { leagueId: leagueId.value }, label: 'Practice', icon: FlaskConical },
+    { name: 'league-fixtures', params: { leagueId: leagueId.value }, label: 'Fixtures', icon: Calendar },
+    { name: 'league-my-teams', params: { leagueId: leagueId.value }, label: 'My Teams', icon: Star },
+    { name: 'league-leaderboard', params: { leagueId: leagueId.value }, label: 'Standings', icon: Trophy },
   ]
 })
 
-const globalNavItems = [
-  { name: 'home', params: {}, label: 'Home', icon: '🏠' },
-  { name: 'leagues', params: {}, label: 'Leagues', icon: '🏆' },
+const globalNavItems: { name: string; params: object; label: string; icon: Component }[] = [
+  { name: 'home', params: {}, label: 'Home', icon: Home },
+  { name: 'leagues', params: {}, label: 'Leagues', icon: LayoutGrid },
 ]
 
 async function logout() {
@@ -50,7 +52,7 @@ async function logout() {
         class="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-gold-400 transition-colors"
         exact-active-class="text-gold-500"
       >
-        <span class="text-xl">{{ item.icon }}</span>
+        <component :is="item.icon" :size="20" class="shrink-0" />
         <span class="text-xs">{{ item.label }}</span>
       </RouterLink>
     </template>
@@ -63,7 +65,7 @@ async function logout() {
         active-class="text-gold-500"
         :exact="item.name === 'home'"
       >
-        <span class="text-xl">{{ item.icon }}</span>
+        <component :is="item.icon" :size="20" class="shrink-0" />
         <span class="text-xs">{{ item.label }}</span>
       </RouterLink>
     </template>
@@ -73,7 +75,7 @@ async function logout() {
       class="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-gold-400 transition-colors"
       active-class="text-gold-500"
     >
-      <span class="text-xl">👤</span>
+      <User :size="20" class="shrink-0" />
       <span class="text-xs">Profile</span>
     </RouterLink>
   </nav>
@@ -100,7 +102,7 @@ async function logout() {
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium mb-1"
         exact-active-class="bg-gold-500/10 text-gold-400 border border-gold-500/20"
       >
-        <span class="text-lg">{{ item.icon }}</span>
+        <component :is="item.icon" :size="18" class="shrink-0" />
         {{ item.label }}
       </RouterLink>
       <div class="border-t border-navy-700 my-2" />
@@ -115,7 +117,7 @@ async function logout() {
       active-class="bg-gold-500/10 text-gold-400 border border-gold-500/20"
       :exact="item.name === 'home'"
     >
-      <span class="text-lg">{{ item.icon }}</span>
+      <component :is="item.icon" :size="18" class="shrink-0" />
       {{ item.label }}
     </RouterLink>
 
@@ -141,7 +143,7 @@ async function logout() {
         class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-navy-700 transition-all text-sm font-medium w-full"
         @click="logout"
       >
-        <span class="text-lg">🚪</span>
+        <LogOut :size="18" class="shrink-0" />
         Sign out
       </button>
     </div>

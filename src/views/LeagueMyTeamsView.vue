@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { TIER_COLORS, TIER_LABELS } from '@/types/app.types'
 import type { Team, TeamTier } from '@/types/app.types'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { Shuffle } from 'lucide-vue-next'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -92,7 +93,7 @@ onMounted(async () => {
 
     <!-- No draft yet -->
     <BaseCard v-else-if="noDraft" class="text-center py-10">
-      <div class="text-4xl mb-3">🎲</div>
+      <div class="mb-3"><Shuffle :size="40" class="mx-auto" /></div>
       <p class="text-slate-300 font-semibold">No teams drafted yet</p>
       <p class="text-slate-500 text-sm mt-1">Complete the league draft to see your teams here.</p>
     </BaseCard>

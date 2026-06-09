@@ -6,6 +6,7 @@ import { useLeaderboardStore } from '@/stores/leaderboard.store'
 import { useLeagueStore } from '@/stores/league.store'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { Trophy, Shuffle } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const leaderboardStore = useLeaderboardStore()
@@ -38,7 +39,7 @@ const myEntry = computed(() =>
     <!-- Welcome -->
     <div class="mb-8">
       <h1 class="text-2xl font-black text-slate-100">
-        Welcome back, <span class="text-gold-500">{{ auth.profile?.username }}</span> 👋
+        Welcome back, <span class="text-gold-500">{{ auth.profile?.username }}</span>
       </h1>
       <p class="text-slate-400 mt-1 text-sm">FIFA World Cup 2026 — USA, Canada &amp; Mexico</p>
     </div>
@@ -47,7 +48,7 @@ const myEntry = computed(() =>
     <div v-if="!leagueStore.loading && !leagueStore.myLeagues.length" class="mb-8">
       <BaseCard>
         <div class="text-center py-6">
-          <div class="text-4xl mb-3">🏆</div>
+          <div class="mb-3"><Trophy :size="40" class="mx-auto" /></div>
           <h2 class="text-lg font-bold text-slate-100 mb-2">Join or create a league to get started</h2>
           <p class="text-slate-400 text-sm mb-5">Leagues let you draft teams and compete with friends.</p>
           <BaseButton @click="router.push({ name: 'leagues' })">Go to My Leagues</BaseButton>
@@ -93,7 +94,7 @@ const myEntry = computed(() =>
         class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
         @click="router.push({ name: 'league-draft', params: { leagueId: firstLeague.id } })"
       >
-        <div class="text-3xl mb-2">🎲</div>
+        <div class="mb-2"><Shuffle :size="40" /></div>
         <div class="font-bold text-slate-100">Draft</div>
         <div class="text-xs text-slate-500 mt-0.5">Pick your teams</div>
       </button>
@@ -101,7 +102,7 @@ const myEntry = computed(() =>
         class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
         @click="router.push({ name: 'league-leaderboard', params: { leagueId: firstLeague.id } })"
       >
-        <div class="text-3xl mb-2">🏆</div>
+        <div class="mb-2"><Trophy :size="40" /></div>
         <div class="font-bold text-slate-100">Standings</div>
         <div class="text-xs text-slate-500 mt-0.5">League leaderboard</div>
       </button>

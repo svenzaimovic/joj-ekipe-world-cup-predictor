@@ -8,6 +8,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
+import { Trophy, CheckCircle, Copy } from 'lucide-vue-next'
 
 const leagueStore = useLeagueStore()
 const router = useRouter()
@@ -75,7 +76,7 @@ function copyToClipboard(text: string) {
     <LoadingSpinner v-if="leagueStore.loading" class="py-16" />
 
     <div v-else-if="!leagueStore.myLeagues.length" class="text-center py-16">
-      <div class="text-5xl mb-4">🏆</div>
+      <div class="mb-4"><Trophy :size="40" class="mx-auto" /></div>
       <h2 class="text-lg font-bold text-slate-100 mb-2">No leagues yet</h2>
       <p class="text-slate-400 text-sm mb-6">Create a league and invite your friends, or join one with an invite code.</p>
       <div class="flex gap-3 justify-center">
@@ -104,11 +105,11 @@ function copyToClipboard(text: string) {
     <!-- Create League Modal -->
     <BaseModal v-if="showCreateModal" title="Create League" @close="showCreateModal = false; createdInviteCode = ''">
       <div v-if="createdInviteCode" class="text-center py-4">
-        <div class="text-4xl mb-3">🎉</div>
+        <div class="mb-3"><CheckCircle :size="40" class="mx-auto" /></div>
         <p class="text-slate-300 mb-3">League created! Share this code with your friends:</p>
         <div class="flex items-center justify-center gap-2 mb-2">
           <span class="font-mono text-3xl font-black text-gold-500 tracking-widest">{{ createdInviteCode }}</span>
-          <button class="text-slate-400 hover:text-gold-400 transition-colors" @click="copyToClipboard(createdInviteCode)">📋</button>
+          <button class="text-slate-400 hover:text-gold-400 transition-colors" @click="copyToClipboard(createdInviteCode)"><Copy :size="15" class="shrink-0" /></button>
         </div>
         <p class="text-xs text-slate-500">Redirecting you to your league…</p>
       </div>

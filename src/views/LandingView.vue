@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ScoringGuide from '@/components/ui/ScoringGuide.vue'
 import { useRouter } from 'vue-router'
+import { Users, Shuffle, Trophy } from 'lucide-vue-next'
 
 const router = useRouter()
 </script>
@@ -35,17 +36,17 @@ const router = useRouter()
       <h2 class="text-center text-xs font-bold uppercase tracking-widest text-slate-500 mb-8">How it works</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div class="bg-navy-800 rounded-2xl border border-navy-700 p-5 flex flex-col items-center text-center gap-3">
-          <div class="text-4xl">🏟️</div>
+          <div class="mb-2"><Users :size="40" /></div>
           <div class="font-black text-slate-100">1. Join a league</div>
           <p class="text-slate-400 text-sm">Create a private league and share the invite code with friends.</p>
         </div>
         <div class="bg-navy-800 rounded-2xl border border-navy-700 p-5 flex flex-col items-center text-center gap-3">
-          <div class="text-4xl">🎲</div>
+          <div class="mb-2"><Shuffle :size="40" /></div>
           <div class="font-black text-slate-100">2. Snake draft</div>
           <p class="text-slate-400 text-sm">Take turns picking national teams in snake order until every team is claimed.</p>
         </div>
         <div class="bg-navy-800 rounded-2xl border border-navy-700 p-5 flex flex-col items-center text-center gap-3">
-          <div class="text-4xl">🏆</div>
+          <div class="mb-2"><Trophy :size="40" /></div>
           <div class="font-black text-slate-100">3. Earn points</div>
           <p class="text-slate-400 text-sm">Score points for every win, draw, and qualification. Most points at the end wins.</p>
         </div>

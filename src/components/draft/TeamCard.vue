@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Team } from '@/types/app.types'
 import { TIER_COLORS } from '@/types/app.types'
+import { Check } from 'lucide-vue-next'
 
 defineProps<{
   team: Team
@@ -45,6 +46,6 @@ defineEmits<{ select: [team: Team] }>()
       Tier {{ team.tier }}
     </div>
 
-    <div v-if="picked" class="absolute inset-0 flex items-center justify-center text-xl opacity-50">✓</div>
+    <div v-if="picked" class="absolute inset-0 flex items-center justify-center opacity-50"><Check :size="20" /></div>
   </button>
 </template>

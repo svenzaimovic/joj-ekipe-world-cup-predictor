@@ -14,6 +14,7 @@ import { TIER_LABELS, TIER_COLORS } from '@/types/app.types'
 import type { Team, TeamTier } from '@/types/app.types'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
+import { Copy, Shuffle, FlaskConical, Trophy } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -98,7 +99,7 @@ function copyInviteCode() {
         <div class="flex items-center gap-2 mt-1">
           <span class="text-slate-500 text-sm">Invite code:</span>
           <span class="font-mono text-gold-400 font-bold tracking-widest">{{ league?.invite_code }}</span>
-          <button class="text-slate-500 hover:text-gold-400 transition-colors text-sm" @click="copyInviteCode">📋</button>
+          <button class="text-slate-500 hover:text-gold-400 transition-colors text-sm" @click="copyInviteCode"><Copy :size="15" class="shrink-0" /></button>
         </div>
       </div>
       <button
@@ -129,7 +130,7 @@ function copyInviteCode() {
         class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
         @click="router.push({ name: 'league-draft', params: { leagueId } })"
       >
-        <div class="text-3xl mb-2">🎲</div>
+        <div class="mb-2"><Shuffle :size="40" /></div>
         <div class="font-bold text-slate-100">Draft</div>
         <div class="text-xs text-slate-500 mt-0.5">Pick your teams</div>
       </button>
@@ -137,7 +138,7 @@ function copyInviteCode() {
         class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
         @click="router.push({ name: 'league-draft-practice', params: { leagueId } })"
       >
-        <div class="text-3xl mb-2">🧪</div>
+        <div class="mb-2"><FlaskConical :size="40" /></div>
         <div class="font-bold text-slate-100">Practice Draft</div>
         <div class="text-xs text-slate-500 mt-0.5">Trial run — no scoring</div>
       </button>
@@ -145,7 +146,7 @@ function copyInviteCode() {
         class="bg-navy-800 border border-navy-700 rounded-2xl p-5 text-left hover:border-gold-500/40 hover:bg-navy-700 transition-all"
         @click="router.push({ name: 'league-leaderboard', params: { leagueId } })"
       >
-        <div class="text-3xl mb-2">🏆</div>
+        <div class="mb-2"><Trophy :size="40" /></div>
         <div class="font-bold text-slate-100">Standings</div>
         <div class="text-xs text-slate-500 mt-0.5">League leaderboard</div>
       </button>

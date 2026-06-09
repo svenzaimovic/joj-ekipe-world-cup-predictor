@@ -2,6 +2,7 @@
 import { useCountdown } from '@/composables/useCountdown'
 import type { Stage } from '@/types/app.types'
 import { useMatchesStore } from '@/stores/matches.store'
+import { Lock, Clock } from 'lucide-vue-next'
 
 const props = defineProps<{ stage: Stage }>()
 const matchesStore = useMatchesStore()
@@ -22,7 +23,11 @@ const { formatted, urgency, isExpired } = useCountdown(() => matchesStore.stageL
             : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
     ]"
   >
-    <span v-if="matchesStore.isStageLocked(stage)">🔒 Locked</span>
-    <span v-else>⏱ Closes {{ formatted }}</span>
+    <template v-if="matchesStore.isStageLocked(stage)">
+      <Lock :size="12" class="shrink-0" /> Locked
+    </template>
+    <template v-else>
+      <Clock :size="12" class="shrink-0" /> Closes {{ formatted }}
+    </template>
   </div>
 </template>

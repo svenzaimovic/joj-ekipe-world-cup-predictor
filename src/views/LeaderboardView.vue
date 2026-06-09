@@ -5,6 +5,7 @@ import { useLeaderboardStore } from '@/stores/leaderboard.store'
 import { useLeagueStore } from '@/stores/league.store'
 import { useAuthStore } from '@/stores/auth.store'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import { Crown } from 'lucide-vue-next'
 
 const route = useRoute()
 const leaderboardStore = useLeaderboardStore()
@@ -23,7 +24,6 @@ onUnmounted(() => {
   leaderboardChannel.value?.unsubscribe()
 })
 
-const medals = ['🥇', '🥈', '🥉']
 </script>
 
 <template>
@@ -45,7 +45,8 @@ const medals = ['🥇', '🥈', '🥉']
         ]"
       >
         <div class="w-8 text-center font-black text-lg">
-          {{ medals[idx] ?? `#${idx + 1}` }}
+          <Crown v-if="idx === 0" :size="18" class="text-gold-500 mx-auto" />
+          <span v-else class="text-sm font-black text-slate-500">#{{ idx + 1 }}</span>
         </div>
         <div class="flex-1 font-bold text-slate-100 flex items-center gap-2">
           {{ entry.username }}

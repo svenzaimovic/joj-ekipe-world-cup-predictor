@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth.store'
 import { TIER_COLORS, TIER_LABELS } from '@/types/app.types'
 import type { Team, TeamTier } from '@/types/app.types'
+import { Star } from 'lucide-vue-next'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -293,7 +294,7 @@ onMounted(() => {
               v-if="match.status === 'finished' && matchPoints(match) > 0"
               class="border-t border-navy-700 px-3 py-1.5 bg-gold-500/5 flex items-center gap-1.5"
             >
-              <span class="text-gold-400 text-xs">⭐</span>
+              <Star :size="12" class="inline-block text-gold-400 fill-gold-400 shrink-0" />
               <span class="text-gold-400 text-xs font-black">+{{ matchPoints(match) }} pts</span>
               <span class="text-slate-500 text-xs">earned this match</span>
             </div>

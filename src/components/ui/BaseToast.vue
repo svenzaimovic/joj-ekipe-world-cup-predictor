@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { X } from 'lucide-vue-next'
 
 export interface Toast {
   id: number
@@ -35,7 +36,7 @@ defineExpose({ add })
         ]"
       >
         {{ toast.message }}
-        <button class="ml-2 opacity-70 hover:opacity-100" @click="remove(toast.id)">✕</button>
+        <button class="ml-2 opacity-70 hover:opacity-100" @click="remove(toast.id)"><X :size="16" /></button>
       </div>
     </Transition>
   </div>

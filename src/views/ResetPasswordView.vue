@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { Check } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -54,7 +55,7 @@ async function submit() {
         <h2 class="text-lg font-bold text-slate-100 mb-5">Set new password</h2>
 
         <div v-if="done" class="text-center py-4">
-          <div class="text-3xl mb-2">✓</div>
+          <div class="mb-2"><Check :size="40" class="mx-auto" /></div>
           <p class="text-slate-300 text-sm">Password updated! Redirecting…</p>
         </div>
 

@@ -6,6 +6,7 @@ import { calculatePredictorPoints } from '@/types/app.types'
 import { usePredictionsStore } from '@/stores/predictions.store'
 import { useMatchesStore } from '@/stores/matches.store'
 import dayjs from 'dayjs'
+import { Star } from 'lucide-vue-next'
 
 const props = defineProps<{ match: Match; locked: boolean }>()
 
@@ -82,7 +83,7 @@ const isLive = computed(() => props.match.status === 'live')
           pointsEarned > 0 ? 'bg-emerald-500/20 text-emerald-400' :
           'bg-navy-700 text-slate-500'
         ]">
-          {{ pointsEarned === 5 ? '⭐ ' : '' }}{{ pointsEarned }} pts
+          <Star v-if="pointsEarned === 5" :size="12" class="inline-block text-gold-400 fill-gold-400" /> {{ pointsEarned }} pts
         </div>
         <div v-else-if="saved && !isFinished" class="text-xs text-slate-500">
           Saved: {{ saved.home_score_pred }}–{{ saved.away_score_pred }}

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useRouter, useRoute } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { Sparkles, Check } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -61,7 +62,7 @@ async function logout() {
   <div class="p-4 md:p-8 max-w-lg mx-auto pb-24 md:pb-8">
     <!-- Onboarding banner -->
     <div v-if="isOnboarding" class="bg-gold-500/10 border border-gold-500/30 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
-      <span class="text-xl mt-0.5">👋</span>
+      <Sparkles :size="18" class="shrink-0 text-gold-400 mt-0.5" />
       <div>
         <p class="text-gold-400 font-semibold text-sm">Welcome! Set a display name before you start.</p>
         <p class="text-slate-400 text-xs mt-0.5">This is what other players will see in the draft and standings.</p>
@@ -92,7 +93,8 @@ async function logout() {
       </div>
 
       <BaseButton :loading="saving" @click="updateUsername">
-        {{ saved ? '✓ Saved' : 'Save' }}
+        <template v-if="saved"><Check :size="15" class="shrink-0 inline-block" /> Saved</template>
+        <template v-else>Save</template>
       </BaseButton>
     </BaseCard>
 
@@ -121,7 +123,8 @@ async function logout() {
         </div>
         <p v-if="passwordError" class="text-wc-red-500 text-sm">{{ passwordError }}</p>
         <BaseButton :loading="passwordSaving" @click="changePassword">
-          {{ passwordSaved ? '✓ Password updated' : 'Update password' }}
+          <template v-if="passwordSaved"><Check :size="15" class="shrink-0 inline-block" /> Password updated</template>
+          <template v-else>Update password</template>
         </BaseButton>
       </div>
     </BaseCard>

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter, useRoute } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { Check, MailCheck } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -155,7 +156,7 @@ function switchTab(t: 'login' | 'signup') {
           </form>
 
           <div v-if="resetSent" class="mt-4 text-center">
-            <p class="text-green-400 text-sm">✓ Reset link sent — check your email.</p>
+            <p class="text-green-400 text-sm flex items-center gap-1 justify-center"><Check :size="15" class="shrink-0" /> Reset link sent — check your email.</p>
             <button class="text-slate-500 text-xs mt-2 hover:text-slate-300 transition-colors" @click="mode = 'login'; resetSent = false">Back to sign in</button>
           </div>
 
@@ -178,7 +179,7 @@ function switchTab(t: 'login' | 'signup') {
         <!-- SIGN UP TAB -->
         <template v-else>
           <div v-if="signupDone" class="text-center py-4">
-            <div class="text-4xl mb-3">📬</div>
+            <div class="mb-3"><MailCheck :size="40" class="mx-auto" /></div>
             <p class="text-slate-100 font-semibold mb-1">Check your email</p>
             <p class="text-slate-400 text-sm">We sent a confirmation link to <span class="text-slate-200">{{ email }}</span>. Click it to activate your account, then sign in.</p>
             <button class="mt-4 text-gold-400 text-sm hover:text-gold-300 transition-colors" @click="switchTab('login')">Back to sign in</button>

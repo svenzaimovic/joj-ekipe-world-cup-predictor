@@ -16,6 +16,7 @@ import { TIER_COLORS } from '@/types/app.types'
 import ScoringGuide from '@/components/ui/ScoringGuide.vue'
 import type { Ref } from 'vue'
 import type BaseToast from '@/components/ui/BaseToast.vue'
+import { FlaskConical, Shuffle, Trophy, Target, Check } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{ isPractice?: boolean }>(), { isPractice: false })
 
@@ -157,7 +158,9 @@ watch(
     <div v-else-if="!draftStore.room || draftStore.room.status === 'waiting'" class="max-w-lg mx-auto">
       <BaseCard>
         <div class="text-center py-4">
-          <div class="text-5xl mb-4">{{ isPractice ? '🧪' : '🎲' }}</div>
+          <div class="mb-4">
+            <component :is="isPractice ? FlaskConical : Shuffle" :size="40" class="mx-auto" />
+          </div>
           <h2 class="text-xl font-black text-slate-100 mb-2">{{ isPractice ? 'Practice Lobby' : 'Draft Lobby' }}</h2>
           <p class="text-slate-400 text-sm mb-6">
             <template v-if="isPractice">
@@ -205,7 +208,7 @@ watch(
             <p v-else-if="!isLeagueOwner && (draftStore.room?.pick_order.length ?? 0) >= 2" class="text-slate-500 text-sm text-center">
               Waiting for the league owner to start…
             </p>
-            <p v-if="hasJoined" class="text-emerald-400 text-sm">✓ You're in the lobby</p>
+            <p v-if="hasJoined" class="text-emerald-400 text-sm flex items-center gap-1"><Check :size="15" class="shrink-0" /> You're in the lobby</p>
           </div>
         </div>
       </BaseCard>
@@ -237,7 +240,8 @@ watch(
                  flex items-center gap-2 whitespace-nowrap"
         >
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-30" />
-          <span class="relative">🎯 YOUR TURN — pick a team!</span>
+          <Target :size="16" class="relative shrink-0" />
+          <span class="relative">YOUR TURN — pick a team!</span>
         </div>
       </Transition>
 
@@ -300,7 +304,9 @@ watch(
     <!-- COMPLETED -->
     <div v-else-if="draftStore.room.status === 'completed'">
       <div class="text-center mb-8">
-        <div class="text-5xl mb-3">{{ isPractice ? '🧪' : '🏆' }}</div>
+        <div class="mb-3">
+          <component :is="isPractice ? FlaskConical : Trophy" :size="40" class="mx-auto" />
+        </div>
         <h2 class="text-2xl font-black text-slate-100">{{ isPractice ? 'Practice Complete!' : 'Draft Complete!' }}</h2>
         <p class="text-slate-400 mt-1">
           {{ isPractice ? 'This was a practice run — no points awarded.' : "Here's who owns which teams" }}
@@ -352,7 +358,7 @@ watch(
     <!-- Confirm pick modal -->
     <BaseModal v-if="pendingTeam" title="Confirm pick" @close="pendingTeam = null">
       <div class="text-center py-2">
-        <div class="text-4xl mb-3">🎯</div>
+        <div class="mb-3"><Target :size="40" class="mx-auto" /></div>
         <p class="text-slate-300 mb-6">
           Draft <span class="font-black text-gold-500">{{ pendingTeam.name }}</span>?
           <span v-if="isPractice" class="block text-xs text-amber-400 mt-1">(Practice — no scoring)</span>
