@@ -11,57 +11,41 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const isRecovering = ref(false)
 
-  async function init() {
-    // Register the listener FIRST so we never miss auth events that fire
-    // while getSession() is still in-flight (e.g. the user logs in during a
-    // slow cold-start). INITIAL_SESSION fires once the auth client has
-    // determined the starting state — we use it to mark ourselves ready.
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        // Supabase has determined the initial session — this is the
-        // authoritative source of truth on first load.
+  function init(): Promise<void> {
+    // Do NOT call getSession() here. In Supabase JS v2, getSession() acquires
+    // an internal auth lock that blocks every subsequent Supabase call
+    // (including all data queries) until it releases. Instead we rely solely
+    // on onAuthStateChange which fires INITIAL_SESSION almost immediately
+    // without lock contention, giving us the same session info.
+    return new Promise<void>((resolve) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          user.value = session?.user ?? null
+          initialized.value = true
+          if (session?.user) {
+            fetchProfile().catch((e) => console.warn('[auth] fetchProfile error:', e))
+          } else {
+            profile.value = null
+          }
+          resolve() // unblock the router guard
+          return
+        }
+
+        if (event === 'PASSWORD_RECOVERY') {
+          isRecovering.value = true
+          user.value = session?.user ?? null
+          return
+        }
+
+        isRecovering.value = false
         user.value = session?.user ?? null
-        // Mark initialized immediately so the router guard unblocks without
-        // waiting for the profile fetch round-trip.
-        initialized.value = true
-        if (session?.user) {
-          fetchProfile().catch((e) => console.warn('[auth] fetchProfile error:', e))
+        if (user.value) {
+          await fetchProfile()
         } else {
           profile.value = null
         }
-        return
-      }
-
-      if (event === 'PASSWORD_RECOVERY') {
-        isRecovering.value = true
-        user.value = session?.user ?? null
-        return
-      }
-
-      isRecovering.value = false
-      user.value = session?.user ?? null
-      if (user.value) {
-        await fetchProfile()
-      } else {
-        profile.value = null
-      }
+      })
     })
-
-    // getSession() is kept as a fallback: if INITIAL_SESSION fires first
-    // (which it usually does) this becomes a no-op; if not, it ensures we
-    // always set initialized even if the listener never fires.
-    try {
-      const { data } = await supabase.auth.getSession()
-      if (!initialized.value) {
-        user.value = data.session?.user ?? null
-        if (user.value) await fetchProfile()
-      }
-    } catch (e) {
-      console.warn('Failed to get session:', e)
-      if (!initialized.value) user.value = null
-    } finally {
-      initialized.value = true
-    }
   }
 
   async function fetchProfile() {
