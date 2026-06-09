@@ -97,7 +97,7 @@ async function logout() {
         v-for="item in leagueNavItems"
         :key="item.name"
         :to="{ name: item.name, params: item.params }"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium mb-1"
         exact-active-class="bg-gold-500/10 text-gold-400 border border-gold-500/20"
       >
         <span class="text-lg">{{ item.icon }}</span>
@@ -111,7 +111,7 @@ async function logout() {
       v-for="item in globalNavItems"
       :key="item.name"
       :to="{ name: item.name }"
-      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-navy-700 transition-all text-sm font-medium mb-1"
       active-class="bg-gold-500/10 text-gold-400 border border-gold-500/20"
       :exact="item.name === 'home'"
     >
