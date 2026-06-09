@@ -12,7 +12,8 @@ const router = useRouter()
 
 // True once the very first navigation has settled (guard resolved + component loaded)
 const appReady = ref(false)
-router.isReady().then(() => { appReady.value = true })
+// Belt-and-suspenders: catch any navigation rejection so the overlay never hangs
+router.isReady().then(() => { appReady.value = true }).catch(() => { appReady.value = true })
 </script>
 
 <template>

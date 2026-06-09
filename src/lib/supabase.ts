@@ -36,5 +36,13 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: safeStorage(),
+    // Supabase JS v2 serialises ALL auth + data operations behind navigator.locks
+    // (a real cross-tab browser mutex). When a stored session exists, _initialize()
+    // holds this lock while refreshing the token — which blocks every data query in
+    // the same tab for the full duration of the refresh (up to several seconds on
+    // the free tier). A single-tab SPA never needs a cross-context mutex, so we
+    // replace it with a no-op that runs the callback immediately. Token refresh
+    // still happens in the background; we just don't make everything else wait for it.
+    lock: (_name: string, _acquireTimeout: number, fn: () => Promise<void>) => fn(),
   },
 })
