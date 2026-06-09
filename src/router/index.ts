@@ -76,6 +76,11 @@ const router = createRouter({
               name: 'league-leaderboard',
               component: () => import('@/views/LeaderboardView.vue'),
             },
+            {
+              path: 'my-teams',
+              name: 'league-my-teams',
+              component: () => import('@/views/LeagueMyTeamsView.vue'),
+            },
           ],
         },
       ],
