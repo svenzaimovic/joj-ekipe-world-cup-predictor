@@ -10,12 +10,15 @@ export const useLeagueStore = defineStore('league', () => {
 
   async function fetchMyLeagues() {
     loading.value = true
-    const { data } = await supabase
-      .from('leagues')
-      .select('*')
-      .order('created_at', { ascending: true })
-    myLeagues.value = (data ?? []) as League[]
-    loading.value = false
+    try {
+      const { data } = await supabase
+        .from('leagues')
+        .select('*')
+        .order('created_at', { ascending: true })
+      myLeagues.value = (data ?? []) as League[]
+    } finally {
+      loading.value = false
+    }
   }
 
   async function setActiveLeague(leagueId: string): Promise<boolean> {

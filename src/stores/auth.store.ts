@@ -11,40 +11,49 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const isRecovering = ref(false)
 
-  function init(): Promise<void> {
-    // Do NOT call getSession() here. In Supabase JS v2, getSession() acquires
-    // an internal auth lock that blocks every subsequent Supabase call
-    // (including all data queries) until it releases. Instead we rely solely
-    // on onAuthStateChange which fires INITIAL_SESSION almost immediately
-    // without lock contention, giving us the same session info.
-    return new Promise<void>((resolve) => {
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'INITIAL_SESSION') {
-          user.value = session?.user ?? null
-          initialized.value = true
-          if (session?.user) {
-            fetchProfile().catch((e) => console.warn('[auth] fetchProfile error:', e))
-          } else {
-            profile.value = null
-          }
-          resolve() // unblock the router guard
-          return
-        }
+  function init(): void {
+    // Read the stored session synchronously from localStorage so the router
+    // guard can make an auth decision instantly — no lock, no network request.
+    // Supabase's internal _initialize() acquires an auth lock and may hold it
+    // for several seconds while refreshing an expired token. Any code that
+    // calls getSession() (including every data query) queues behind that lock.
+    // Reading localStorage directly sidesteps it entirely.
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    try {
+      const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
+      const raw = localStorage.getItem(`sb-${projectRef}-auth-token`)
+      if (raw) user.value = JSON.parse(raw)?.user ?? null
+    } catch { /* no stored session or storage unavailable */ }
+    initialized.value = true
 
-        if (event === 'PASSWORD_RECOVERY') {
-          isRecovering.value = true
-          user.value = session?.user ?? null
-          return
-        }
-
-        isRecovering.value = false
+    // Register the official listener. INITIAL_SESSION will fire once
+    // _initialize() completes (possibly after a token refresh) and overwrite
+    // the stored value with the authoritative session.
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
         user.value = session?.user ?? null
-        if (user.value) {
-          await fetchProfile()
+        if (session?.user) {
+          fetchProfile().catch((e) => console.warn('[auth] fetchProfile:', e))
         } else {
           profile.value = null
         }
-      })
+        return
+      }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        isRecovering.value = true
+        user.value = session?.user ?? null
+        return
+      }
+
+      // SIGNED_IN / TOKEN_REFRESHED / SIGNED_OUT
+      isRecovering.value = false
+      user.value = session?.user ?? null
+      if (user.value) {
+        await fetchProfile()
+      } else {
+        profile.value = null
+      }
     })
   }
 
