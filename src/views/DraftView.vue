@@ -213,6 +213,34 @@ watch(
 
     <!-- ACTIVE DRAFT -->
     <div v-else-if="draftStore.room.status === 'active'">
+
+      <!-- ── "Your turn" indicators ─────────────────────────────────────────── -->
+      <Transition name="turn">
+        <template v-if="draftStore.isMyTurn">
+          <!-- Red glow ring around the whole viewport -->
+          <div class="fixed inset-0 pointer-events-none z-40 rounded-none"
+               style="box-shadow: inset 0 0 0 4px rgba(220,38,38,0.85), inset 0 0 40px rgba(220,38,38,0.25);" />
+        </template>
+      </Transition>
+
+      <!-- Floating pill — sits above the mobile bottom nav (bottom-[72px]) on small
+           screens and near the bottom on desktop. pointer-events-none so it never
+           blocks the team grid underneath. -->
+      <Transition name="turn">
+        <div
+          v-if="draftStore.isMyTurn"
+          class="fixed bottom-[72px] md:bottom-6 left-1/2 -translate-x-1/2 z-50
+                 pointer-events-none select-none
+                 bg-red-600 text-white font-black text-sm
+                 px-5 py-2.5 rounded-full
+                 shadow-lg shadow-red-600/50
+                 flex items-center gap-2 whitespace-nowrap"
+        >
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-30" />
+          <span class="relative">🎯 YOUR TURN — pick a team!</span>
+        </div>
+      </Transition>
+
       <!-- Status bar -->
       <div class="bg-navy-800 border border-navy-700 rounded-2xl p-4 mb-6 flex items-center gap-6 flex-wrap">
         <PickTimer
@@ -337,3 +365,15 @@ watch(
     </BaseModal>
   </div>
 </template>
+
+<style scoped>
+/* Fade the "your turn" ring and pill in/out */
+.turn-enter-active,
+.turn-leave-active {
+  transition: opacity 0.3s ease;
+}
+.turn-enter-from,
+.turn-leave-to {
+  opacity: 0;
+}
+</style>
