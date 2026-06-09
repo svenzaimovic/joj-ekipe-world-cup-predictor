@@ -5,42 +5,41 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const API_KEY = Deno.env.get('API_FOOTBALL_KEY')!
-const API_BASE = 'https://v3.football.api-sports.io'
-const LEAGUE_ID = 1   // FIFA World Cup
-const SEASON = 2026
+const FD_KEY = Deno.env.get('FOOTBALL_DATA_KEY')!
+const FD_BASE = 'https://api.football-data.org/v4'
 
-async function apiFetch(path: string) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'x-apisports-key': API_KEY },
+async function fdFetch(path: string) {
+  const res = await fetch(`${FD_BASE}${path}`, {
+    headers: { 'X-Auth-Token': FD_KEY },
   })
+  if (!res.ok) throw new Error(`football-data.org ${res.status}: ${await res.text()}`)
   return res.json()
 }
 
 Deno.serve(async () => {
   try {
-    // Fetch finished fixtures
+    // Fetch all live + finished WC matches
     const [finishedData, liveData] = await Promise.all([
-      apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&status=FT`),
-      apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&status=LIVE`),
+      fdFetch('/competitions/WC/matches?season=2026&status=FINISHED'),
+      fdFetch('/competitions/WC/matches?season=2026&status=IN_PLAY'),
     ])
 
     const fixtures = [
-      ...(finishedData.response ?? []).map((f: ApiFixture) => ({ ...f, newStatus: 'finished' })),
-      ...(liveData.response ?? []).map((f: ApiFixture) => ({ ...f, newStatus: 'live' })),
+      ...(finishedData.matches ?? []).map((m: FdMatch) => ({ ...m, newStatus: 'finished' as const })),
+      ...(liveData.matches ?? []).map((m: FdMatch) => ({ ...m, newStatus: 'live' as const })),
     ]
 
     let updatedCount = 0
     const finishedMatchIds: number[] = []
 
     for (const fixture of fixtures) {
-      const externalId = String(fixture.fixture.id)
-      const homeScore = fixture.goals.home
-      const awayScore = fixture.goals.away
+      const externalId = String(fixture.id)
+      const homeScore = fixture.score?.fullTime?.home ?? null
+      const awayScore = fixture.score?.fullTime?.away ?? null
 
       const { data: match } = await supabase
         .from('matches')
-        .select('id, status, home_team_id, away_team_id')
+        .select('id, status')
         .eq('external_id', externalId)
         .maybeSingle()
 
@@ -50,11 +49,7 @@ Deno.serve(async () => {
 
       await supabase
         .from('matches')
-        .update({
-          home_score: homeScore,
-          away_score: awayScore,
-          status: fixture.newStatus,
-        })
+        .update({ home_score: homeScore, away_score: awayScore, status: fixture.newStatus })
         .eq('external_id', externalId)
 
       updatedCount++
@@ -84,9 +79,10 @@ Deno.serve(async () => {
   }
 })
 
-interface ApiFixture {
-  fixture: { id: number; date: string; venue: { name: string } }
-  teams: { home: { id: number; name: string }; away: { id: number; name: string } }
-  goals: { home: number | null; away: number | null }
-  newStatus?: string
+interface FdMatch {
+  id: number
+  status: string
+  score: {
+    fullTime: { home: number | null; away: number | null }
+  }
 }

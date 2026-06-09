@@ -1,11 +1,10 @@
 /**
  * seed-fixtures — one-time admin function
  *
- * Calls the API-Football API, fetches every WC 2026 fixture,
+ * Calls football-data.org, fetches every WC 2026 fixture,
  * and upserts them into the matches table with the correct
  * external_id and team IDs from our DB.
  *
- * Call once before the tournament (or re-call to refresh).
  * Idempotent — safe to run multiple times.
  */
 
@@ -16,110 +15,70 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const API_KEY = Deno.env.get('API_FOOTBALL_KEY')!
-const API_BASE = 'https://v3.football.api-sports.io'
-const LEAGUE_ID = 1
-const SEASON = 2026
+const FD_KEY = Deno.env.get('FOOTBALL_DATA_KEY')!
+const FD_BASE = 'https://api.football-data.org/v4'
 
-// Maps API team names → our team codes (for tricky mismatches)
+// Maps football-data.org team names / TLAs → our team codes
 const NAME_MAP: Record<string, string> = {
+  // By full name
   'United States': 'USA',
-  'USA': 'USA',
   'Korea Republic': 'KOR',
   'South Korea': 'KOR',
-  'Czech Republic': 'CZE',
-  'Czechia': 'CZE',
   'Bosnia and Herzegovina': 'BIH',
   'Bosnia & Herzegovina': 'BIH',
-  'Ivory Coast': 'CIV',
   "Côte d'Ivoire": 'CIV',
-  'Cote d\'Ivoire': 'CIV',
+  'Ivory Coast': 'CIV',
+  'Curaçao': 'CUW',
+  'Curacao': 'CUW',
   'Cape Verde': 'CPV',
   'Cape Verde Islands': 'CPV',
   'DR Congo': 'COD',
   'Congo DR': 'COD',
   'Democratic Republic of the Congo': 'COD',
-  'Curacao': 'CUW',
-  'Curaçao': 'CUW',
   'Saudi Arabia': 'KSA',
   'New Zealand': 'NZL',
   'South Africa': 'RSA',
-  'Scotland': 'SCO',
-  'England': 'ENG',
-  'Portugal': 'POR',
-  'Germany': 'GER',
-  'France': 'FRA',
-  'Spain': 'ESP',
-  'Brazil': 'BRA',
-  'Argentina': 'ARG',
-  'Uruguay': 'URU',
-  'Netherlands': 'NED',
-  'Belgium': 'BEL',
-  'Croatia': 'CRO',
-  'Japan': 'JPN',
-  'Senegal': 'SEN',
-  'Morocco': 'MAR',
-  'Mexico': 'MEX',
-  'Colombia': 'COL',
-  'Ecuador': 'ECU',
-  'Paraguay': 'PAR',
-  'Canada': 'CAN',
-  'Switzerland': 'SUI',
-  'Sweden': 'SWE',
-  'Norway': 'NOR',
-  'Turkey': 'TUR',
-  'Austria': 'AUT',
-  'Algeria': 'ALG',
-  'Ghana': 'GHA',
-  'Egypt': 'EGY',
-  'Tunisia': 'TUN',
-  'Iran': 'IRN',
-  'Iraq': 'IRQ',
-  'Jordan': 'JOR',
-  'Qatar': 'QAT',
-  'Haiti': 'HAI',
-  'Panama': 'PAN',
-  'Honduras': 'HON',
-  'Jamaica': 'JAM',
-  'Australia': 'AUS',
-  'Chile': 'CHI',
-  'Serbia': 'SRB',
-  'Poland': 'POL',
-  'Ukraine': 'UKR',
-  'Romania': 'ROU',
-  'Uzbekistan': 'UZB',
-  'Bolivia': 'BOL',
-  'Venezuela': 'VEN',
-  'Cameroon': 'CMR',
-  'Nigeria': 'NGA',
-  'Sudan': 'SDN',
-  'Costa Rica': 'CRC',
-  'Italy': 'ITA',
-  'Greece': 'GRE',
-  'Russia': 'RUS',
+  // By TLA (football-data.org 3-letter codes that differ from ours)
+  'USA': 'USA',
+  'KOR': 'KOR',
+  'BIH': 'BIH',
+  'CIV': 'CIV',
+  'CUW': 'CUW',
+  'CPV': 'CPV',
+  'COD': 'COD',
+  'KSA': 'KSA',
+  'NZL': 'NZL',
+  'RSA': 'RSA',
+  'ENG': 'ENG',
+  'SCO': 'SCO',
+  'HAI': 'HAI',
+  'IRQ': 'IRQ',
+  'IRN': 'IRN',
 }
 
 const STAGE_MAP: Record<string, string> = {
   'Group Stage': 'group',
-  '3rd Round': 'r32',   // WC 2026 Round of 32
   'Round of 32': 'r32',
+  'Last 32': 'r32',
   'Round of 16': 'r16',
+  'Last 16': 'r16',
   'Quarter-finals': 'qf',
   'Semi-finals': 'sf',
   'Final': 'final',
   '3rd Place Final': 'final',
 }
 
-async function apiFetch(path: string) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'x-apisports-key': API_KEY },
+async function fdFetch(path: string) {
+  const res = await fetch(`${FD_BASE}${path}`, {
+    headers: { 'X-Auth-Token': FD_KEY },
   })
+  if (!res.ok) throw new Error(`football-data.org error: ${res.status} ${await res.text()}`)
   return res.json()
 }
 
 Deno.serve(async () => {
   try {
-    // Load all our teams indexed by code
+    // Load all our teams indexed by code and name
     const { data: dbTeams } = await supabase.from('teams').select('id, name, code')
     if (!dbTeams?.length) {
       return new Response(JSON.stringify({ ok: false, error: 'No teams in DB — run migrations first' }), { status: 400 })
@@ -128,62 +87,73 @@ Deno.serve(async () => {
     const teamByCode: Record<string, number> = {}
     const teamByName: Record<string, number> = {}
     for (const t of dbTeams) {
-      teamByCode[t.code] = t.id
+      teamByCode[t.code.toUpperCase()] = t.id
       teamByName[t.name.toLowerCase()] = t.id
     }
 
-    function resolveTeam(apiName: string): number | null {
-      // Try direct name map → code → id
-      const code = NAME_MAP[apiName]
-      if (code && teamByCode[code]) return teamByCode[code]
+    function resolveTeam(name: string, tla: string): number | null {
+      // Try name map
+      const mappedCode = NAME_MAP[name] || NAME_MAP[tla]
+      if (mappedCode && teamByCode[mappedCode]) return teamByCode[mappedCode]
+      // Try our own code match
+      if (teamByCode[tla?.toUpperCase()]) return teamByCode[tla?.toUpperCase()]
       // Try lowercase name match
-      return teamByName[apiName.toLowerCase()] ?? null
+      return teamByName[name?.toLowerCase()] ?? null
     }
 
-    // Fetch all fixtures for WC 2026
-    const data = await apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}`)
-    const fixtures: ApiFixture[] = data.response ?? []
+    // Fetch all WC 2026 fixtures
+    const data = await fdFetch('/competitions/WC/matches?season=2026')
+    const matches: FdMatch[] = data.matches ?? []
 
-    if (!fixtures.length) {
-      return new Response(JSON.stringify({ ok: false, error: 'No fixtures returned from API', raw: data }), { status: 200 })
+    if (!matches.length) {
+      return new Response(JSON.stringify({ ok: false, error: 'No matches returned', raw: data }), { status: 200 })
     }
 
     let inserted = 0
     let updated = 0
-    let skipped = 0
     const unmatchedTeams = new Set<string>()
 
-    for (const f of fixtures) {
-      const externalId = String(f.fixture.id)
-      const apiStage = f.league.round ?? 'Group Stage'
-      const stage = STAGE_MAP[apiStage] ?? 'group'
-      const matchDate = f.fixture.date
-      const venue = f.fixture.venue?.name ?? null
+    for (const m of matches) {
+      const externalId = String(m.id)
+      const apiStage = m.stage ?? m.matchday ? 'Group Stage' : 'Group Stage'
+      // football-data.org uses m.stage like "GROUP_STAGE", "ROUND_OF_32" etc
+      const stageRaw = m.stage ?? 'GROUP_STAGE'
+      let stage = 'group'
+      if (stageRaw === 'GROUP_STAGE') stage = 'group'
+      else if (stageRaw === 'ROUND_OF_32' || stageRaw === 'LAST_32') stage = 'r32'
+      else if (stageRaw === 'ROUND_OF_16' || stageRaw === 'LAST_16') stage = 'r16'
+      else if (stageRaw === 'QUARTER_FINALS') stage = 'qf'
+      else if (stageRaw === 'SEMI_FINALS') stage = 'sf'
+      else if (stageRaw === 'FINAL' || stageRaw === 'THIRD_PLACE') stage = 'final'
+      else {
+        // Try the round string
+        stage = STAGE_MAP[stageRaw] ?? 'group'
+      }
 
-      const homeId = resolveTeam(f.teams.home.name)
-      const awayId = resolveTeam(f.teams.away.name)
+      const homeId = resolveTeam(m.homeTeam.name, m.homeTeam.tla)
+      const awayId = resolveTeam(m.awayTeam.name, m.awayTeam.tla)
 
-      if (!homeId) unmatchedTeams.add(f.teams.home.name)
-      if (!awayId) unmatchedTeams.add(f.teams.away.name)
+      if (!homeId && m.homeTeam.name) unmatchedTeams.add(`${m.homeTeam.name} (${m.homeTeam.tla})`)
+      if (!awayId && m.awayTeam.name) unmatchedTeams.add(`${m.awayTeam.name} (${m.awayTeam.tla})`)
 
-      // For group stage: lock 1 hour before kickoff
-      // For knockouts: lock at match time
+      const matchDate = m.utcDate
       const kickoff = new Date(matchDate)
       const lockTime = stage === 'group'
         ? new Date(kickoff.getTime() - 60 * 60 * 1000).toISOString()
         : kickoff.toISOString()
 
-      const homeScore = f.goals.home
-      const awayScore = f.goals.away
-      const apiStatus = f.fixture.status?.short ?? 'NS'
-      const status = apiStatus === 'FT' || apiStatus === 'AET' || apiStatus === 'PEN' ? 'finished'
-        : ['1H', '2H', 'HT', 'ET', 'P', 'LIVE'].includes(apiStatus) ? 'live'
+      const homeScore = m.score?.fullTime?.home ?? null
+      const awayScore = m.score?.fullTime?.away ?? null
+      const status = m.status === 'FINISHED' || m.status === 'AWARDED'
+        ? 'finished'
+        : m.status === 'IN_PLAY' || m.status === 'PAUSED'
+        ? 'live'
         : 'scheduled'
 
       const payload = {
         external_id: externalId,
         stage,
-        stage_order: 0,
+        stage_order: m.matchday ?? 0,
         match_date: matchDate,
         home_team_id: homeId,
         away_team_id: awayId,
@@ -191,10 +161,9 @@ Deno.serve(async () => {
         away_score: awayScore,
         status,
         lock_time: lockTime,
-        venue,
+        venue: m.venue ?? null,
       }
 
-      // Check if match already exists
       const { data: existing } = await supabase
         .from('matches')
         .select('id')
@@ -212,10 +181,9 @@ Deno.serve(async () => {
 
     return new Response(JSON.stringify({
       ok: true,
-      total: fixtures.length,
+      total: matches.length,
       inserted,
       updated,
-      skipped,
       unmatchedTeams: [...unmatchedTeams],
     }), { headers: { 'Content-Type': 'application/json' } })
 
@@ -228,17 +196,17 @@ Deno.serve(async () => {
   }
 })
 
-interface ApiFixture {
-  fixture: {
-    id: number
-    date: string
-    status: { short: string }
-    venue: { name: string }
+interface FdMatch {
+  id: number
+  utcDate: string
+  status: string
+  stage: string
+  matchday: number | null
+  venue: string | null
+  homeTeam: { id: number; name: string; tla: string }
+  awayTeam: { id: number; name: string; tla: string }
+  score: {
+    winner: string | null
+    fullTime: { home: number | null; away: number | null }
   }
-  league: { round: string }
-  teams: {
-    home: { id: number; name: string }
-    away: { id: number; name: string }
-  }
-  goals: { home: number | null; away: number | null }
 }
