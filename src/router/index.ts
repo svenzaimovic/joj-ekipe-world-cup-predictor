@@ -93,12 +93,28 @@ const router = createRouter({
   ],
 })
 
+// Add error handler so silent chunk-load failures become visible
+router.onError((error) => {
+  console.error('[router] navigation error:', error)
+})
+
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
   if (!authStore.initialized) {
     try {
-      await authStore.init()
+      // Race getSession() against a 5-second timeout so a hanging Supabase
+      // request never permanently blocks the first navigation.
+      await Promise.race([
+        authStore.init(),
+        new Promise<void>((resolve) =>
+          setTimeout(() => {
+            console.warn('[auth] init timed out — unblocking navigation')
+            authStore.initialized = true
+            resolve()
+          }, 5000),
+        ),
+      ])
     } catch {
       authStore.initialized = true // unblock navigation even if init fails
     }
