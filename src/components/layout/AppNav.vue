@@ -19,6 +19,7 @@ const leagueNavItems = computed(() => {
     { name: 'league-home', params: { leagueId: leagueId.value }, label: 'League', icon: '🏠' },
     { name: 'league-draft', params: { leagueId: leagueId.value }, label: 'Draft', icon: '🎲' },
     { name: 'league-draft-practice', params: { leagueId: leagueId.value }, label: 'Practice', icon: '🧪' },
+    { name: 'league-fixtures', params: { leagueId: leagueId.value }, label: 'Fixtures', icon: '📅' },
     { name: 'league-my-teams', params: { leagueId: leagueId.value }, label: 'My Teams', icon: '⭐' },
     { name: 'league-leaderboard', params: { leagueId: leagueId.value }, label: 'Standings', icon: '🏆' },
   ]

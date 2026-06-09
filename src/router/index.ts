@@ -81,6 +81,11 @@ const router = createRouter({
               name: 'league-my-teams',
               component: () => import('@/views/LeagueMyTeamsView.vue'),
             },
+            {
+              path: 'fixtures',
+              name: 'league-fixtures',
+              component: () => import('@/views/LeagueFixturesView.vue'),
+            },
           ],
         },
       ],
