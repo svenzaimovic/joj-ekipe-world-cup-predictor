@@ -100,7 +100,13 @@ export const useAuthStore = defineStore('auth', () => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: {
+        data: { username },
+        // After email confirmation, Supabase redirects to this URL.
+        // /auth/callback is unprotected and waits for the session handoff before
+        // navigating to /home — the same route OAuth uses for the same reason.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     loading.value = false
     if (error) throw error

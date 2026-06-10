@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter, useRoute } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -10,9 +10,17 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const isOnboarding = route.query.onboarding === 'true'
+
+// Profile may not have loaded yet at mount time (async fetch). We initialise
+// from whatever is already in the store, then sync whenever it arrives.
 const username = ref(auth.profile?.username ?? '')
+watch(() => auth.profile, (p) => {
+  if (p && !username.value) username.value = p.username ?? ''
+})
+
 const saving = ref(false)
 const saved = ref(false)
+const usernameError = ref('')
 
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -21,11 +29,17 @@ const passwordSaved = ref(false)
 const passwordError = ref('')
 
 async function updateUsername() {
+  usernameError.value = ''
   saving.value = true
-  await auth.updateUsername(username.value)
-  saving.value = false
-  saved.value = true
-  setTimeout(() => { saved.value = false }, 2000)
+  try {
+    await auth.updateUsername(username.value)
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 2000)
+  } catch (e: unknown) {
+    usernameError.value = e instanceof Error ? e.message : 'Failed to save username'
+  } finally {
+    saving.value = false
+  }
 }
 
 async function changePassword() {
@@ -92,6 +106,7 @@ async function logout() {
         />
       </div>
 
+      <p v-if="usernameError" class="text-wc-red-500 text-sm mb-2">{{ usernameError }}</p>
       <BaseButton :loading="saving" @click="updateUsername">
         <template v-if="saved"><Check :size="15" class="shrink-0 inline-block" /> Saved</template>
         <template v-else>Save</template>
