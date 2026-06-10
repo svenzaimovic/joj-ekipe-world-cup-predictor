@@ -37,6 +37,7 @@ interface PointsRow {
 
 const matches = ref<MatchRow[]>([])
 const myTeamIds = ref<Set<number>>(new Set())
+const teamOwners = ref<Map<number, string>>(new Map())   // teamId → username
 const pointsByMatch = ref<Map<number, PointsRow[]>>(new Map())
 const loading = ref(true)
 
@@ -62,12 +63,23 @@ onMounted(async () => {
     .maybeSingle()
 
   if (room) {
-    const { data: picks } = await supabase
+    // All picks in this room, joined with the owner's username
+    const { data: allPicks } = await supabase
       .from('draft_picks')
-      .select('team_id')
+      .select('team_id, user_id, profiles(username)')
       .eq('room_id', room.id)
-      .eq('user_id', auth.user.id)
-    myTeamIds.value = new Set((picks ?? []).map((p: { team_id: number }) => p.team_id))
+
+    const ownerMap = new Map<number, string>()
+    for (const p of allPicks ?? []) {
+      const pick = p as { team_id: number; user_id: string; profiles: { username: string } | null }
+      if (pick.profiles?.username) ownerMap.set(pick.team_id, pick.profiles.username)
+    }
+    teamOwners.value = ownerMap
+    myTeamIds.value = new Set(
+      (allPicks ?? [])
+        .filter((p: { user_id: string }) => p.user_id === auth.user!.id)
+        .map((p: { team_id: number }) => p.team_id),
+    )
   }
 
   // Points the user earned per match in this league
@@ -124,6 +136,11 @@ function matchPoints(match: MatchRow): number {
 
 function ownsTeam(teamId: number) {
   return myTeamIds.value.has(teamId)
+}
+
+function teamOwner(teamId: number): string | null {
+  if (ownsTeam(teamId)) return null   // shown as MINE already
+  return teamOwners.value.get(teamId) ?? null
 }
 
 // ── Grouped matches ───────────────────────────────────────────────────────────
@@ -227,7 +244,10 @@ onMounted(() => {
                   <div
                     v-if="match.home_team"
                     class="text-[10px] text-slate-500 text-right"
-                  >T{{ match.home_team.tier }} · {{ TIER_LABELS[match.home_team.tier as TeamTier] }}</div>
+                  >
+                    T{{ match.home_team.tier }} · {{ TIER_LABELS[match.home_team.tier as TeamTier] }}
+                    <span v-if="teamOwner(match.home_team.id)" class="text-slate-400 font-semibold"> · {{ teamOwner(match.home_team.id) }}</span>
+                  </div>
                 </div>
                 <img
                   v-if="match.home_team?.flag_url"
@@ -284,7 +304,10 @@ onMounted(() => {
                   <div
                     v-if="match.away_team"
                     class="text-[10px] text-slate-500"
-                  >T{{ match.away_team.tier }} · {{ TIER_LABELS[match.away_team.tier as TeamTier] }}</div>
+                  >
+                    T{{ match.away_team.tier }} · {{ TIER_LABELS[match.away_team.tier as TeamTier] }}
+                    <span v-if="teamOwner(match.away_team.id)" class="text-slate-400 font-semibold"> · {{ teamOwner(match.away_team.id) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
