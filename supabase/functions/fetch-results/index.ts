@@ -16,18 +16,35 @@ async function fdFetch(path: string) {
   return res.json()
 }
 
+function toDateStr(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
 Deno.serve(async () => {
   try {
-    // Fetch all live + finished WC matches
-    const [finishedData, liveData] = await Promise.all([
-      fdFetch('/competitions/WC/matches?season=2026&status=FINISHED'),
-      fdFetch('/competitions/WC/matches?season=2026&status=IN_PLAY'),
-    ])
+    // football-data.org free tier: the ?status=FINISHED filter is unreliable —
+    // it returns 0 results even for matches that are clearly finished when fetched
+    // by date. Instead we fetch a rolling 3-day window (yesterday → tomorrow) so
+    // we always catch matches that finished recently.
+    const now = new Date()
+    const yesterday = new Date(now)
+    yesterday.setUTCDate(now.getUTCDate() - 1)
+    const tomorrow = new Date(now)
+    tomorrow.setUTCDate(now.getUTCDate() + 1)
 
-    const fixtures = [
-      ...(finishedData.matches ?? []).map((m: FdMatch) => ({ ...m, newStatus: 'finished' as const })),
-      ...(liveData.matches ?? []).map((m: FdMatch) => ({ ...m, newStatus: 'live' as const })),
-    ]
+    const data = await fdFetch(
+      `/competitions/WC/matches?season=2026&dateFrom=${toDateStr(yesterday)}&dateTo=${toDateStr(tomorrow)}`,
+    )
+
+    const allMatches: FdMatch[] = data.matches ?? []
+
+    // Only process matches that have a result or are live
+    const fixtures = allMatches
+      .filter((m) => m.status === 'FINISHED' || m.status === 'IN_PLAY')
+      .map((m) => ({
+        ...m,
+        newStatus: m.status === 'FINISHED' ? ('finished' as const) : ('live' as const),
+      }))
 
     let updatedCount = 0
     const finishedMatchIds: number[] = []
