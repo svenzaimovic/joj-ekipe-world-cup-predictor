@@ -64,13 +64,29 @@ jobs:
               if kick_ts > now:
                   continue  # not started yet
               ext_id = str(m['id'])
-              # Safe update: never overwrite a match already marked finished
+
+              # Try to extract any live score data the API provides.
+              # Free tier doesn't give in-play scores (fullTime is null during the match),
+              # but some fields like score.halfTime may be available after half-time.
+              score = m.get('score', {})
+              ft = score.get('fullTime', {}) or {}
+              ht = score.get('halfTime', {}) or {}
+              # Use fullTime if available (shouldn't be during the match), else halfTime
+              home_score = ft.get('home') if ft.get('home') is not None else ht.get('home')
+              away_score = ft.get('away') if ft.get('away') is not None else ht.get('away')
+
+              patch_body = {"status": "live"}
+              if home_score is not None and away_score is not None:
+                  patch_body["home_score"] = home_score
+                  patch_body["away_score"] = away_score
+
               try:
                   sb_patch(
                       f"matches?external_id=eq.{ext_id}&status=neq.finished",
-                      {"status": "live"}
+                      patch_body
                   )
-                  print(f"live: {m.get('homeTeam',{}).get('name')} vs {m.get('awayTeam',{}).get('name')} (id={ext_id})")
+                  score_str = f"{home_score}-{away_score}" if home_score is not None else "no score data"
+                  print(f"live: {m.get('homeTeam',{}).get('name')} vs {m.get('awayTeam',{}).get('name')} | score: {score_str} (id={ext_id})")
                   live_count += 1
               except Exception as e:
                   print(f"warn: could not update {ext_id}: {e}")
