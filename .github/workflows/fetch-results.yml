@@ -11,17 +11,72 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug — what does football-data.org return for WC 2026?
+      # On the free football-data.org tier, matches never become IN_PLAY —
+      # they stay as TIMED until they're FINISHED. So we need to:
+      #   1. Check TIMED matches whose kickoff has passed → mark as 'live' in our DB
+      #   2. Check FINISHED matches → let the edge function pull scores + trigger points
+      - name: Mark started matches as live
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "=== IN_PLAY ==="
-          curl -s "https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=IN_PLAY" \
-            -H "X-Auth-Token: ${{ secrets.FOOTBALL_DATA_KEY }}" | python3 -c "import sys,json; d=json.load(sys.stdin); matches=d.get('matches',[]); print(f'{len(matches)} matches'); [print(m['id'], m['status'], m.get('homeTeam',{}).get('name'), 'vs', m.get('awayTeam',{}).get('name')) for m in matches[:5]]" 2>/dev/null || echo "(parse error or empty)"
-          echo "=== FINISHED ==="
-          curl -s "https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=FINISHED" \
-            -H "X-Auth-Token: ${{ secrets.FOOTBALL_DATA_KEY }}" | python3 -c "import sys,json; d=json.load(sys.stdin); matches=d.get('matches',[]); print(f'{len(matches)} matches'); [print(m['id'], m['status'], m.get('homeTeam',{}).get('name'), 'vs', m.get('awayTeam',{}).get('name')) for m in matches[:5]]" 2>/dev/null || echo "(parse error or empty)"
-          echo "=== SCHEDULED (first 3) ==="
-          curl -s "https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=SCHEDULED" \
-            -H "X-Auth-Token: ${{ secrets.FOOTBALL_DATA_KEY }}" | python3 -c "import sys,json; d=json.load(sys.stdin); matches=d.get('matches',[]); print(f'{len(matches)} matches'); [print(m['id'], m['status'], m.get('homeTeam',{}).get('name'), 'vs', m.get('awayTeam',{}).get('name')) for m in matches[:3]]" 2>/dev/null || echo "(parse error or empty)"
+          python3 << 'PYEOF'
+          import json, os, time, urllib.request
+          from datetime import datetime, timezone
+
+          fd_key = os.environ['FOOTBALL_DATA_KEY']
+          sb_url = os.environ['SUPABASE_URL']
+          sb_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+
+          def fd_get(path):
+              req = urllib.request.Request(
+                  f"https://api.football-data.org/v4{path}",
+                  headers={"X-Auth-Token": fd_key}
+              )
+              with urllib.request.urlopen(req) as r:
+                  return json.loads(r.read())
+
+          def sb_patch(path, body):
+              req = urllib.request.Request(
+                  f"{sb_url}/rest/v1/{path}",
+                  data=json.dumps(body).encode(),
+                  headers={
+                      "apikey": sb_key,
+                      "Authorization": f"Bearer {sb_key}",
+                      "Content-Type": "application/json",
+                      "Prefer": "return=minimal",
+                  },
+                  method='PATCH'
+              )
+              urllib.request.urlopen(req)
+
+          now = datetime.now(timezone.utc).timestamp()
+
+          # Step 1: TIMED matches whose kickoff has passed → mark live
+          timed = fd_get('/competitions/WC/matches?season=2026&status=TIMED')
+          live_count = 0
+          for m in timed.get('matches', []):
+              kick_ts = datetime.fromisoformat(m['utcDate'].replace('Z', '+00:00')).timestamp()
+              if kick_ts > now:
+                  continue  # not started yet
+              ext_id = str(m['id'])
+              # Safe update: never overwrite a match already marked finished
+              try:
+                  sb_patch(
+                      f"matches?external_id=eq.{ext_id}&status=neq.finished",
+                      {"status": "live"}
+                  )
+                  print(f"live: {m.get('homeTeam',{}).get('name')} vs {m.get('awayTeam',{}).get('name')} (id={ext_id})")
+                  live_count += 1
+              except Exception as e:
+                  print(f"warn: could not update {ext_id}: {e}")
+
+          # Step 2: FINISHED matches — the edge function handles scores + points
+          finished = fd_get('/competitions/WC/matches?season=2026&status=FINISHED')
+          finished_ids = [str(m['id']) for m in finished.get('matches', [])]
+          print(f"Done. Marked {live_count} as live. {len(finished_ids)} finished (handled by edge fn).")
+          PYEOF
 
       - name: Call fetch-results edge function
         run: |
