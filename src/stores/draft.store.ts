@@ -87,6 +87,17 @@ export const useDraftStore = defineStore('draft', () => {
     picks.value = (data ?? []) as DraftPick[]
   }
 
+  // Silent re-sync: re-fetches room + picks without showing the loading spinner.
+  // Used to catch up after a WebSocket reconnect or tab becoming visible again.
+  async function syncState() {
+    if (!room.value) return
+    const [roomRes] = await Promise.all([
+      supabase.from('draft_rooms').select('*').eq('id', room.value.id).single(),
+    ])
+    if (roomRes.data) room.value = roomRes.data as DraftRoom
+    await fetchPicks()
+  }
+
   async function joinRoom(leagueId: string, roomType: 'official' | 'practice' = 'official') {
     const { data, error } = await supabase.functions.invoke('draft-join', {
       body: { league_id: leagueId, room_type: roomType },
@@ -125,12 +136,23 @@ export const useDraftStore = defineStore('draft', () => {
   function subscribeToRealtime() {
     if (!room.value) return null
 
+    // Track whether we've already done the initial subscribe so we can
+    // distinguish a fresh connect (data already loaded by fetchAll) from a
+    // reconnect (events may have been missed while the socket was down).
+    let subscribeCount = 0
+
     return supabase
       .channel(`draft-room-${room.value.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'draft_picks', filter: `room_id=eq.${room.value.id}` }, async (payload) => {
-        picks.value.push(payload.new as DraftPick)
+      // ── New pick inserted ─────────────────────────────────────────────────
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'draft_picks', filter: `room_id=eq.${room.value.id}` }, (payload) => {
+        const incoming = payload.new as DraftPick
+        // Deduplicate — the same event can fire twice after a reconnect
+        if (!picks.value.some((p) => p.id === incoming.id)) {
+          picks.value.push(incoming)
+        }
         timerStart.value = new Date()
       })
+      // ── Room state changed (pick advanced, status changed, player joined) ─
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'draft_rooms', filter: `id=eq.${room.value!.id}` }, (payload) => {
         room.value = { ...room.value!, ...payload.new }
         if (payload.new.status === 'active' && !timerStart.value) {
@@ -142,7 +164,18 @@ export const useDraftStore = defineStore('draft', () => {
           timerStart.value = null
         }
       })
-      .subscribe()
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          subscribeCount++
+          if (subscribeCount === 1) return // first connect — data already fresh from fetchAll
+          // Reconnected after a drop — silently catch up on any missed events
+          console.info('[draft] realtime reconnected, syncing state…')
+          await syncState()
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[draft] realtime channel error:', status)
+        }
+      })
   }
 
   function getProfile(userId: string): Profile | undefined {
@@ -157,7 +190,7 @@ export const useDraftStore = defineStore('draft', () => {
     room, picks, teams, profiles, loading, pickLoading, timerStart,
     pickedTeamIds, availableTeams, currentPickerUserId, isMyTurn,
     teamsPerPlayer, totalPicks, isDraftComplete, picksByUser,
-    fetchAll, fetchPicks, joinRoom, startDraft, makePick, resetPractice,
+    fetchAll, fetchPicks, syncState, joinRoom, startDraft, makePick, resetPractice,
     subscribeToRealtime, getProfile, getTeam,
   }
 })

@@ -35,9 +35,51 @@ const pendingTeam = ref<Team | null>(null)
 const realtimeChannel = ref<ReturnType<typeof draftStore.subscribeToRealtime>>(null)
 const resetLoading = ref(false)
 
+// Re-sync when the user switches back to this tab — catches missed realtime
+// events that were dropped while the tab was in the background.
+async function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    await draftStore.syncState()
+  }
+}
+
+// Fallback poll for the waiting lobby — runs every 5 s while the room is in
+// "waiting" state to catch join/leave events if realtime isn't delivering them.
+// Stops automatically once the draft goes active.
+let lobbyPollInterval: ReturnType<typeof setInterval> | null = null
+
+function startLobbyPoll() {
+  if (lobbyPollInterval) return
+  lobbyPollInterval = setInterval(async () => {
+    if (draftStore.room?.status !== 'waiting') {
+      stopLobbyPoll()
+      return
+    }
+    await draftStore.syncState()
+  }, 5000)
+}
+
+function stopLobbyPoll() {
+  if (lobbyPollInterval) {
+    clearInterval(lobbyPollInterval)
+    lobbyPollInterval = null
+  }
+}
+
 onMounted(async () => {
   await draftStore.fetchAll(leagueId.value, roomType.value)
   realtimeChannel.value = draftStore.subscribeToRealtime()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  // Start lobby poll if we're in the waiting room
+  if (!draftStore.room || draftStore.room.status === 'waiting') {
+    startLobbyPoll()
+  }
+})
+
+// Stop lobby poll once draft goes active
+watch(() => draftStore.room?.status, (status) => {
+  if (status === 'active' || status === 'completed') stopLobbyPoll()
+  if (status === 'waiting') startLobbyPoll()
 })
 
 // ── Auto-pick ─────────────────────────────────────────────────────────────────
@@ -59,6 +101,8 @@ async function onTimerExpire() {
 
 onUnmounted(() => {
   realtimeChannel.value?.unsubscribe()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  stopLobbyPoll()
 })
 
 const currentPicker = computed(() =>
