@@ -1,0 +1,32 @@
+name: Check FD API
+on: [workflow_dispatch]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check football-data.org for WC 2026 results
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+        run: |
+          echo "=== FINISHED ==="
+          curl -s "https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=FINISHED" \
+            -H "X-Auth-Token: $FOOTBALL_DATA_KEY" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+ms=d.get('matches',[])
+print(f'{len(ms)} finished matches')
+for m in ms[:10]:
+    s=m.get('score',{})
+    print(m['id'], m['status'], m.get('homeTeam',{}).get('name'), s.get('fullTime'), 'vs', m.get('awayTeam',{}).get('name'))
+" 2>/dev/null || echo "parse error: $(curl -s 'https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=FINISHED' -H 'X-Auth-Token: '$FOOTBALL_DATA_KEY | head -c 300)"
+
+          echo "=== Match 537327 directly ==="
+          curl -s "https://api.football-data.org/v4/matches/537327" \
+            -H "X-Auth-Token: $FOOTBALL_DATA_KEY" | python3 -c "
+import sys,json
+m=json.load(sys.stdin)
+s=m.get('score',{})
+print('status:', m.get('status'))
+print('fullTime:', s.get('fullTime'))
+print('halfTime:', s.get('halfTime'))
+" 2>/dev/null || echo "direct match lookup error"
