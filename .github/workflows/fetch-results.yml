@@ -2,34 +2,14 @@ name: Fetch Match Results
 
 on:
   schedule:
-    # Runs every 5 minutes during tournament hours (10:00–23:59 UTC)
-    # Group stage matches kick off between 17:00–23:00 UTC
-    - cron: '*/5 10-23 * * *'
+    # Every 5 minutes, all day — catches results from any timezone
+    - cron: '*/5 * * * *'
   workflow_dispatch: # allow manual trigger from GitHub UI
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - name: Check football-data.org API state
-        env:
-          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
-        run: |
-          echo "--- FINISHED ---"
-          curl -s "https://api.football-data.org/v4/competitions/WC/matches?season=2026&status=FINISHED" \
-            -H "X-Auth-Token: $FOOTBALL_DATA_KEY" | python3 -c "
-import sys,json; d=json.load(sys.stdin); ms=d.get('matches',[])
-print(len(ms),'finished matches')
-for m in ms[:5]:
-  s=m.get('score',{}); print(m['id'],m.get('homeTeam',{}).get('name'),s.get('fullTime'),'vs',m.get('awayTeam',{}).get('name'))
-"
-          echo "--- Match 537327 (Mexico vs South Africa) ---"
-          curl -s "https://api.football-data.org/v4/matches/537327" \
-            -H "X-Auth-Token: $FOOTBALL_DATA_KEY" | python3 -c "
-import sys,json; m=json.load(sys.stdin); s=m.get('score',{})
-print('status:',m.get('status'),'fullTime:',s.get('fullTime'),'halfTime:',s.get('halfTime'))
-"
-
       - name: Call fetch-results edge function
         run: |
           curl -s -o response.json -w "%{http_code}" \
