@@ -39,13 +39,16 @@ Deno.serve(async () => {
 
       const { data: match } = await supabase
         .from('matches')
-        .select('id, status')
+        .select('id, status, home_score, away_score')
         .eq('external_id', externalId)
         .maybeSingle()
 
       if (!match) continue
 
       const wasFinished = match.status === 'finished'
+      // Scores were null on a previous run (API published status before scores)
+      const hadNullScores = match.home_score === null || match.away_score === null
+      const nowHasScores = homeScore !== null && awayScore !== null
 
       await supabase
         .from('matches')
@@ -54,7 +57,9 @@ Deno.serve(async () => {
 
       updatedCount++
 
-      if (fixture.newStatus === 'finished' && !wasFinished) {
+      // Trigger points if: just flipped to finished, OR was already finished but
+      // scores just arrived (API published status before scores on a prior run)
+      if (fixture.newStatus === 'finished' && (!wasFinished || (hadNullScores && nowHasScores))) {
         finishedMatchIds.push(match.id)
       }
     }
