@@ -81,7 +81,28 @@ Deno.serve(async () => {
       }
     }
 
-    // Trigger points calculation for newly finished matches
+    // Catch-up: find finished+scored matches in DB that have no draft_points yet.
+    // This handles cases where calculate-points previously failed (e.g. after a bug fix).
+    // It's safe to re-trigger because calculate-points uses ignoreDuplicates on upsert.
+    const { data: unpointedMatches } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('status', 'finished')
+      .not('home_score', 'is', null)
+      .not('away_score', 'is', null)
+
+    for (const m of unpointedMatches ?? []) {
+      if (finishedMatchIds.includes(m.id)) continue // already queued above
+      const { count } = await supabase
+        .from('draft_points')
+        .select('*', { count: 'exact', head: true })
+        .eq('match_id', m.id)
+      // count===0 means either no picks won/drew (fine to re-run, will insert nothing)
+      // or calculate-points never ran — so always safe to retry
+      if (count === 0) finishedMatchIds.push(m.id)
+    }
+
+    // Trigger points calculation for newly finished matches (and any catch-up)
     if (finishedMatchIds.length > 0) {
       await supabase.functions.invoke('calculate-points', {
         body: { match_ids: finishedMatchIds },

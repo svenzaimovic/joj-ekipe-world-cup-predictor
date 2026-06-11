@@ -103,7 +103,7 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
         points: pts,
         reason,
         league_id: leagueId,
-      }, { onConflict: 'user_id,team_id,match_id,reason,league_id', ignoreDuplicates: true })
+      }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
     }
   }
 }
@@ -160,7 +160,7 @@ async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, mat
         points: QUALIFY_BONUS,
         reason: 'qualify',
         league_id: leagueId,
-      }, { onConflict: 'user_id,team_id,match_id,reason,league_id', ignoreDuplicates: true })
+      }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
     }
   }
 }
