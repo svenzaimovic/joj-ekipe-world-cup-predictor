@@ -53,8 +53,11 @@ jobs:
 
           now = datetime.now(timezone.utc).timestamp()
 
-          # Step 1: TIMED matches whose kickoff has passed → mark live
-          timed = fd_get('/competitions/WC/matches?season=2026&status=TIMED')
+          # Step 1: SCHEDULED/TIMED matches whose kickoff has passed → mark live
+          # Note: football-data.org v4 uses "SCHEDULED" as the filter keyword;
+          # the response will show status="TIMED" for confirmed kickoff matches.
+          # Querying "TIMED" as a filter returns nothing on the free tier.
+          timed = fd_get('/competitions/WC/matches?season=2026&status=SCHEDULED')
           live_count = 0
           for m in timed.get('matches', []):
               kick_ts = datetime.fromisoformat(m['utcDate'].replace('Z', '+00:00')).timestamp()
