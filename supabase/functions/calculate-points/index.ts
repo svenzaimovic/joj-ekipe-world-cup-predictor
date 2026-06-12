@@ -116,16 +116,27 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
 
     if (pts > 0) {
       const leagueId = (pick as any).draft_rooms?.league_id ?? null
-      const { error: upsertErr } = await supabase.from('draft_points').upsert({
-        user_id: pick.user_id,
-        team_id: pick.team_id,
-        match_id: matchId,
-        points: pts,
-        reason,
-        league_id: leagueId,
-      }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
-      if (!upsertErr) inserted++
-      else pickLog.push({ upsertErr })
+      // Use select-then-insert to avoid relying on a named unique constraint
+      const { data: existing } = await supabase
+        .from('draft_points')
+        .select('id')
+        .eq('user_id', pick.user_id)
+        .eq('team_id', pick.team_id)
+        .eq('match_id', matchId)
+        .eq('reason', reason)
+        .maybeSingle()
+      if (!existing) {
+        const { error: insertErr } = await supabase.from('draft_points').insert({
+          user_id: pick.user_id,
+          team_id: pick.team_id,
+          match_id: matchId,
+          points: pts,
+          reason,
+          league_id: leagueId,
+        })
+        if (!insertErr) inserted++
+        else pickLog.push({ insertErr })
+      }
     }
   }
 
@@ -177,14 +188,24 @@ async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, mat
 
     for (const pick of officialPicks) {
       const leagueId = (pick as any).draft_rooms?.league_id ?? null
-      await supabase.from('draft_points').upsert({
-        user_id: pick.user_id,
-        team_id: teamId,
-        match_id: matchId,
-        points: QUALIFY_BONUS,
-        reason: 'qualify',
-        league_id: leagueId,
-      }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
+      const { data: existing } = await supabase
+        .from('draft_points')
+        .select('id')
+        .eq('user_id', pick.user_id)
+        .eq('team_id', teamId)
+        .eq('match_id', matchId)
+        .eq('reason', 'qualify')
+        .maybeSingle()
+      if (!existing) {
+        await supabase.from('draft_points').insert({
+          user_id: pick.user_id,
+          team_id: teamId,
+          match_id: matchId,
+          points: QUALIFY_BONUS,
+          reason: 'qualify',
+          league_id: leagueId,
+        })
+      }
     }
   }
 }
