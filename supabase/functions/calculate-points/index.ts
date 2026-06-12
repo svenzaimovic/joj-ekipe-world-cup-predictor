@@ -27,23 +27,15 @@ const QUALIFY_BONUS = 2
 Deno.serve(async (req) => {
   try {
     const { match_ids } = await req.json() as { match_ids: number[] }
-    const debugLog: unknown[] = []
-    debugLog.push({ received_match_ids: match_ids })
 
     for (const matchId of match_ids) {
-      const { data: match, error: matchErr } = await supabase
+      const { data: match } = await supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
         .eq('id', matchId)
         .single()
 
-      if (matchErr) { debugLog.push({ matchId, matchErr }); continue }
-      if (!match || match.home_score === null || match.away_score === null) {
-        debugLog.push({ matchId, skip: 'no scores or not found' })
-        continue
-      }
-
-      debugLog.push({ matchId, home: match.home_team?.name, score: `${match.home_score}-${match.away_score}`, away: match.away_team?.name, home_team_id: match.home_team_id, away_team_id: match.away_team_id })
+      if (!match || match.home_score === null || match.away_score === null) continue
 
       // 1. Calculate predictor points
       const { data: predictions } = await supabase
@@ -60,8 +52,7 @@ Deno.serve(async (req) => {
       }
 
       // 2. Calculate draft points for team owners — official rooms only
-      const draftDebug = await calculateDraftMatchPoints(matchId, match)
-      debugLog.push({ draftDebug })
+      await calculateDraftMatchPoints(matchId, match)
 
       // 3. Group qualify bonus — only awarded once all 6 group matches are done
       if (match.stage === 'group') {
@@ -69,7 +60,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, debug: debugLog }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
   } catch (err) {
     console.error('[calculate-points] unhandled error:', err)
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
@@ -87,15 +78,12 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     .in('team_id', [match.home_team_id, match.away_team_id].filter(Boolean))
 
   const picks = (allPicks ?? []).filter((p: any) => p.draft_rooms?.room_type === 'official')
-  if (!picks.length) return { allPicksCount: allPicks?.length ?? 0, officialPicksCount: 0, picksErr, inserted: 0 }
+  if (!picks.length) return
 
   const homeScore = match.home_score!
   const awayScore = match.away_score!
   const homeTier: number = match.home_team?.tier ?? 2
   const awayTier: number = match.away_team?.tier ?? 2
-
-  let inserted = 0
-  const pickLog: unknown[] = []
 
   for (const pick of picks) {
     const isHome = pick.team_id === match.home_team_id
@@ -112,11 +100,9 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     else if (scored === conceded)  { pts = drawPts; reason = 'draw' }
     else                          { reason = 'loss' }
 
-    pickLog.push({ team_id: pick.team_id, isHome, scored, conceded, tier, pts, reason })
-
     if (pts > 0) {
       const leagueId = (pick as any).draft_rooms?.league_id ?? null
-      // Use select-then-insert to avoid relying on a named unique constraint
+      // Select-then-insert: avoids relying on a unique constraint for idempotency
       const { data: existing } = await supabase
         .from('draft_points')
         .select('id')
@@ -126,7 +112,7 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
         .eq('reason', reason)
         .maybeSingle()
       if (!existing) {
-        const { error: insertErr } = await supabase.from('draft_points').insert({
+        await supabase.from('draft_points').insert({
           user_id: pick.user_id,
           team_id: pick.team_id,
           match_id: matchId,
@@ -134,13 +120,9 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
           reason,
           league_id: leagueId,
         })
-        if (!insertErr) inserted++
-        else pickLog.push({ insertErr })
       }
     }
   }
-
-  return { allPicksCount: allPicks?.length ?? 0, officialPicksCount: picks.length, inserted, pickLog }
 }
 
 async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, matchId: number) {
