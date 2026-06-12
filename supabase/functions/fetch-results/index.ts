@@ -48,6 +48,7 @@ Deno.serve(async () => {
 
     let updatedCount = 0
     const finishedMatchIds: number[] = []
+    let calcResult: unknown = null
 
     for (const fixture of fixtures) {
       const externalId = String(fixture.id)
@@ -104,15 +105,14 @@ Deno.serve(async () => {
 
     // Trigger points calculation for newly finished matches (and any catch-up)
     if (finishedMatchIds.length > 0) {
-      console.log('[fetch-results] triggering calculate-points for match_ids:', finishedMatchIds)
       const { data: cpData, error: cpErr } = await supabase.functions.invoke('calculate-points', {
         body: { match_ids: finishedMatchIds },
       })
-      console.log('[fetch-results] calculate-points response:', JSON.stringify(cpData), cpErr ? `error: ${cpErr.message}` : 'ok')
+      calcResult = { data: cpData, error: cpErr ? cpErr.message : null }
     }
 
     return new Response(
-      JSON.stringify({ ok: true, updated: updatedCount, triggered_calculation: finishedMatchIds.length }),
+      JSON.stringify({ ok: true, updated: updatedCount, triggered_calculation: finishedMatchIds.length, calc: calcResult }),
       { headers: { 'Content-Type': 'application/json' } },
     )
   } catch (err) {
