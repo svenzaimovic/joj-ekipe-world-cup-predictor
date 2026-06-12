@@ -27,7 +27,8 @@ const QUALIFY_BONUS = 2
 Deno.serve(async (req) => {
   try {
     const { match_ids } = await req.json() as { match_ids: number[] }
-    console.log('[calculate-points] received match_ids:', match_ids)
+    const debugLog: unknown[] = []
+    debugLog.push({ received_match_ids: match_ids })
 
     for (const matchId of match_ids) {
       const { data: match, error: matchErr } = await supabase
@@ -36,13 +37,13 @@ Deno.serve(async (req) => {
         .eq('id', matchId)
         .single()
 
-      if (matchErr) { console.error('[calculate-points] match fetch error:', matchErr); continue }
+      if (matchErr) { debugLog.push({ matchId, matchErr }); continue }
       if (!match || match.home_score === null || match.away_score === null) {
-        console.log('[calculate-points] skipping match', matchId, '— no scores or not found')
+        debugLog.push({ matchId, skip: 'no scores or not found' })
         continue
       }
 
-      console.log('[calculate-points] processing match', matchId, match.home_team?.name, match.home_score, '-', match.away_score, match.away_team?.name)
+      debugLog.push({ matchId, home: match.home_team?.name, score: `${match.home_score}-${match.away_score}`, away: match.away_team?.name, home_team_id: match.home_team_id, away_team_id: match.away_team_id })
 
       // 1. Calculate predictor points
       const { data: predictions } = await supabase
@@ -59,7 +60,8 @@ Deno.serve(async (req) => {
       }
 
       // 2. Calculate draft points for team owners — official rooms only
-      await calculateDraftMatchPoints(matchId, match)
+      const draftDebug = await calculateDraftMatchPoints(matchId, match)
+      debugLog.push({ draftDebug })
 
       // 3. Group qualify bonus — only awarded once all 6 group matches are done
       if (match.stage === 'group') {
@@ -67,7 +69,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ ok: true, debug: debugLog }), { headers: { 'Content-Type': 'application/json' } })
   } catch (err) {
     console.error('[calculate-points] unhandled error:', err)
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
@@ -79,18 +81,21 @@ Deno.serve(async (req) => {
 
 async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
   // Only picks from official (non-practice) rooms earn points
-  const { data: allPicks } = await supabase
+  const { data: allPicks, error: picksErr } = await supabase
     .from('draft_picks')
     .select('user_id, team_id, room_id, draft_rooms!inner(league_id, room_type)')
     .in('team_id', [match.home_team_id, match.away_team_id].filter(Boolean))
 
   const picks = (allPicks ?? []).filter((p: any) => p.draft_rooms?.room_type === 'official')
-  if (!picks.length) return
+  if (!picks.length) return { allPicksCount: allPicks?.length ?? 0, officialPicksCount: 0, picksErr, inserted: 0 }
 
   const homeScore = match.home_score!
   const awayScore = match.away_score!
   const homeTier: number = match.home_team?.tier ?? 2
   const awayTier: number = match.away_team?.tier ?? 2
+
+  let inserted = 0
+  const pickLog: unknown[] = []
 
   for (const pick of picks) {
     const isHome = pick.team_id === match.home_team_id
@@ -107,9 +112,11 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     else if (scored === conceded)  { pts = drawPts; reason = 'draw' }
     else                          { reason = 'loss' }
 
+    pickLog.push({ team_id: pick.team_id, isHome, scored, conceded, tier, pts, reason })
+
     if (pts > 0) {
       const leagueId = (pick as any).draft_rooms?.league_id ?? null
-      await supabase.from('draft_points').upsert({
+      const { error: upsertErr } = await supabase.from('draft_points').upsert({
         user_id: pick.user_id,
         team_id: pick.team_id,
         match_id: matchId,
@@ -117,8 +124,12 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
         reason,
         league_id: leagueId,
       }, { onConflict: 'user_id,team_id,match_id,reason', ignoreDuplicates: true })
+      if (!upsertErr) inserted++
+      else pickLog.push({ upsertErr })
     }
   }
+
+  return { allPicksCount: allPicks?.length ?? 0, officialPicksCount: picks.length, inserted, pickLog }
 }
 
 async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, matchId: number) {
