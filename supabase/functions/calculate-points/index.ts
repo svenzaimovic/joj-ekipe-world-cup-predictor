@@ -25,43 +25,56 @@ const TIER_DRAW_POINTS: Record<number, number> = { 1: 0, 2: 1, 3: 1, 4: 2 }
 const QUALIFY_BONUS = 2
 
 Deno.serve(async (req) => {
-  const { match_ids } = await req.json() as { match_ids: number[] }
+  try {
+    const { match_ids } = await req.json() as { match_ids: number[] }
+    console.log('[calculate-points] received match_ids:', match_ids)
 
-  for (const matchId of match_ids) {
-    const { data: match } = await supabase
-      .from('matches')
-      .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
-      .eq('id', matchId)
-      .single()
+    for (const matchId of match_ids) {
+      const { data: match, error: matchErr } = await supabase
+        .from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
+        .eq('id', matchId)
+        .single()
 
-    if (!match || match.home_score === null || match.away_score === null) continue
+      if (matchErr) { console.error('[calculate-points] match fetch error:', matchErr); continue }
+      if (!match || match.home_score === null || match.away_score === null) {
+        console.log('[calculate-points] skipping match', matchId, '— no scores or not found')
+        continue
+      }
 
-    // 1. Calculate predictor points
-    const { data: predictions } = await supabase
-      .from('predictions')
-      .select('*')
-      .eq('match_id', matchId)
+      console.log('[calculate-points] processing match', matchId, match.home_team?.name, match.home_score, '-', match.away_score, match.away_team?.name)
 
-    for (const pred of predictions ?? []) {
-      const pts = calcPredictorPoints(pred.home_score_pred, pred.away_score_pred, match.home_score, match.away_score)
-      await supabase
+      // 1. Calculate predictor points
+      const { data: predictions } = await supabase
         .from('predictions')
-        .update({ points_awarded: pts })
-        .eq('id', pred.id)
+        .select('*')
+        .eq('match_id', matchId)
+
+      for (const pred of predictions ?? []) {
+        const pts = calcPredictorPoints(pred.home_score_pred, pred.away_score_pred, match.home_score, match.away_score)
+        await supabase
+          .from('predictions')
+          .update({ points_awarded: pts })
+          .eq('id', pred.id)
+      }
+
+      // 2. Calculate draft points for team owners — official rooms only
+      await calculateDraftMatchPoints(matchId, match)
+
+      // 3. Group qualify bonus — only awarded once all 6 group matches are done
+      if (match.stage === 'group') {
+        await checkGroupAdvancement(match.home_team_id, match.away_team_id, matchId)
+      }
     }
 
-    // 2. Calculate draft points for team owners — official rooms only
-    await calculateDraftMatchPoints(matchId, match)
-
-    // 3. Group qualify bonus — only awarded once all 6 group matches are done
-    if (match.stage === 'group') {
-      await checkGroupAdvancement(match.home_team_id, match.away_team_id, matchId)
-    }
-    // No per-round advancement bonuses in knockout stages —
-    // tier-based win points are the only reward for going deep
+    return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
+  } catch (err) {
+    console.error('[calculate-points] unhandled error:', err)
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
-
-  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
 })
 
 async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {

@@ -104,9 +104,11 @@ Deno.serve(async () => {
 
     // Trigger points calculation for newly finished matches (and any catch-up)
     if (finishedMatchIds.length > 0) {
-      await supabase.functions.invoke('calculate-points', {
+      console.log('[fetch-results] triggering calculate-points for match_ids:', finishedMatchIds)
+      const { data: cpData, error: cpErr } = await supabase.functions.invoke('calculate-points', {
         body: { match_ids: finishedMatchIds },
       })
+      console.log('[fetch-results] calculate-points response:', JSON.stringify(cpData), cpErr ? `error: ${cpErr.message}` : 'ok')
     }
 
     return new Response(
