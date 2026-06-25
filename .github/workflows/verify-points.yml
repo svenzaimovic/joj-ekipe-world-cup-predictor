@@ -1,0 +1,89 @@
+name: Verify Points
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch and verify all draft picks and points
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request, json, os
+
+          BASE = os.environ['SUPABASE_URL'] + '/rest/v1'
+          KEY  = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path,
+                  headers={
+                      'apikey': KEY,
+                      'Authorization': f'Bearer {KEY}',
+                      'Accept': 'application/json',
+                  }
+              )
+              with urllib.request.urlopen(req) as r:
+                  return json.loads(r.read())
+
+          # 1. Get all official room IDs
+          rooms = get('/draft_rooms?room_type=eq.official&select=id,league_id')
+          official_room_ids = {r['id'] for r in rooms}
+          print(f"Official rooms: {[r['id'] for r in rooms]}")
+
+          # 2. Get all draft picks from official rooms
+          picks_raw = get('/draft_picks?select=user_id,team_id,room_id,teams(name,tier,code),profiles(username)')
+          picks = [p for p in picks_raw if p['room_id'] in official_room_ids]
+
+          # Build team ownership map: team_name -> list of usernames
+          team_owners = {}
+          user_teams = {}
+          for p in picks:
+              u = p['profiles']['username'] if p['profiles'] else p['user_id'][:8]
+              t = p['teams']
+              team_name = f"{t['name']} (T{t['tier']})"
+              team_owners.setdefault(t['name'], []).append(u)
+              user_teams.setdefault(u, []).append(team_name)
+
+          print("\n=== DRAFT PICKS (official room only) ===")
+          for u, teams in sorted(user_teams.items()):
+              print(f"  {u}: {', '.join(sorted(teams))}")
+
+          # 3. Get all draft points
+          points_raw = get('/draft_points?select=user_id,team_id,match_id,points,reason,profiles(username),teams(name,code),matches(home_score,away_score,home_team_id,away_team_id,stage,home_team:home_team_id(name),away_team:away_team_id(name))')
+
+          print("\n=== POINTS BREAKDOWN PER USER ===")
+          by_user = {}
+          for r in points_raw:
+              u = r['profiles']['username'] if r['profiles'] else r['user_id'][:8]
+              team = r['teams']['name'] if r['teams'] else str(r['team_id'])
+              pts  = r['points']
+              reason = r['reason']
+              m = r.get('matches') or {}
+              ht = (m.get('home_team') or {}).get('name', '?')
+              at = (m.get('away_team') or {}).get('name', '?')
+              hs = m.get('home_score', '?')
+              as_ = m.get('away_score', '?')
+              match_str = f"{ht} {hs}-{as_} {at}"
+              if u not in by_user:
+                  by_user[u] = {'total': 0, 'rows': []}
+              by_user[u]['total'] += pts
+              by_user[u]['rows'].append((pts, team, reason, match_str))
+
+          for u, data in sorted(by_user.items(), key=lambda x: -x[1]['total']):
+              print(f"\n{u}: {data['total']} pts")
+              for pts, team, reason, match_str in sorted(data['rows'], key=lambda x: x[1]):
+                  print(f"  +{pts}  {team:<20} {reason:<10} [{match_str}]")
+
+          # 4. Cross-check: for each user, what teams do they own that have finished matches?
+          # Look for any team that earned points but maybe shouldn't, or vice versa
+          print("\n=== TOTAL SUMMARY ===")
+          for u, data in sorted(by_user.items(), key=lambda x: -x[1]['total']):
+              owned = user_teams.get(u, [])
+              print(f"  {u:<20} {data['total']:>4} pts  | Teams: {', '.join(sorted(owned))}")
+
+          PYEOF
