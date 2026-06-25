@@ -114,15 +114,20 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
 
     if (pts > 0) {
       const leagueId = (pick as any).draft_rooms?.league_id ?? null
-      // Select-then-insert: avoids relying on a unique constraint for idempotency
-      const { data: existing } = await supabase
+      // Select-then-insert: avoids relying on a unique constraint for idempotency.
+      // MUST include league_id in the dedup check — a player can own the same team
+      // in multiple leagues, and each league deserves its own points row.
+      const existingQuery = supabase
         .from('draft_points')
         .select('id')
         .eq('user_id', pick.user_id)
         .eq('team_id', pick.team_id)
         .eq('match_id', matchId)
         .eq('reason', reason)
-        .maybeSingle()
+      if (leagueId != null) existingQuery.eq('league_id', leagueId)
+      else existingQuery.is('league_id', null)
+
+      const { data: existing } = await existingQuery.maybeSingle()
       if (!existing) {
         await supabase.from('draft_points').insert({
           user_id: pick.user_id,
@@ -148,68 +153,31 @@ async function fetchStandingsByTla(): Promise<Map<string, FdStanding>> {
   return map
 }
 
-async function checkGroupAdvancement(homeTeamId: number, awayTeamId: number, matchId: number) {
-  // Find which group these teams belong to
-  const { data: team } = await supabase.from('teams').select('group_name').eq('id', homeTeamId).single()
-  if (!team?.group_name) return
-
-  // Get all 4 teams in the group with their TLA codes (for API mapping)
-  const { data: groupTeams } = await supabase
-    .from('teams')
-    .select('id, code')
-    .eq('group_name', team.group_name)
-  if (!groupTeams?.length) return
-
-  const groupTeamIds = groupTeams.map((t: any) => t.id)
-
-  // Only proceed once all 6 group matches are finished
-  const { count: finishedCount } = await supabase
-    .from('matches')
-    .select('*', { count: 'exact', head: true })
-    .eq('stage', 'group')
-    .in('home_team_id', groupTeamIds)
-    .eq('status', 'finished')
-
-  if ((finishedCount ?? 0) < 6) return
-
-  // Fetch API standings to get FIFA-correct sort order (pts → GD → GF)
-  const standingByTla = await fetchStandingsByTla()
-
-  // Rank the 4 group teams using API data
-  const ranked = groupTeams
-    .map((t: any) => ({ id: t.id, standing: standingByTla.get(t.code) }))
-    .filter((t: any) => t.standing != null)
-    .sort((a: any, b: any) => {
-      const ptsDiff = b.standing.points - a.standing.points
-      if (ptsDiff !== 0) return ptsDiff
-      const gdDiff = b.standing.goalDifference - a.standing.goalDifference
-      if (gdDiff !== 0) return gdDiff
-      return b.standing.goalsFor - a.standing.goalsFor
-    })
-
-  // Award +2 to the top 2 teams in this group
-  const top2 = ranked.slice(0, 2).map((t: any) => t.id)
-  for (const teamId of top2) {
-    await awardQualifyBonus(teamId, matchId)
-  }
-
-  // Once ALL group stage matches are done, award the 8 best third-place teams
-  await checkBestThirdPlace(matchId, standingByTla)
+// Called after every group stage match. Qualification bonuses are intentionally
+// deferred until ALL 72 group stage matches are complete — so no partial group
+// results leak into the standings prematurely.
+async function checkGroupAdvancement(_homeTeamId: number, _awayTeamId: number, matchId: number) {
+  await checkAndAwardAllQualifications(matchId)
 }
 
-// Called after every group completes. When all 72 group matches are done,
-// collect the 12 third-place teams, rank them globally, and award +2 to the best 8.
-async function checkBestThirdPlace(matchId: number, standingByTla: Map<string, FdStanding>) {
-  // Count unfinished group matches across ALL groups
+// When ALL 72 group stage matches are done, award +2 to:
+//   • the top 2 teams in every group (24 teams total)
+//   • the 8 best third-place teams across all 12 groups
+// Uses API standings for FIFA-correct tiebreakers.
+async function checkAndAwardAllQualifications(matchId: number) {
+  // Guard: only proceed once every group stage match is finished
   const { count: remaining } = await supabase
     .from('matches')
     .select('*', { count: 'exact', head: true })
     .eq('stage', 'group')
     .neq('status', 'finished')
 
-  if ((remaining ?? 1) > 0) return // Not all groups done yet
+  if ((remaining ?? 1) > 0) return
 
-  // Fetch all 12 groups from our DB
+  // Fetch API standings (FIFA-correct ordering)
+  const standingByTla = await fetchStandingsByTla()
+
+  // Load all teams grouped by group_name
   const { data: allTeams } = await supabase
     .from('teams')
     .select('id, code, group_name')
@@ -217,14 +185,12 @@ async function checkBestThirdPlace(matchId: number, standingByTla: Map<string, F
 
   if (!allTeams?.length) return
 
-  // Group teams by group_name
   const byGroup = new Map<string, Array<{ id: number; code: string }>>()
   for (const t of allTeams) {
     if (!byGroup.has(t.group_name)) byGroup.set(t.group_name, [])
     byGroup.get(t.group_name)!.push({ id: t.id, code: t.code })
   }
 
-  // For each group, find the third-place team using API standings
   const thirdPlaceTeams: Array<{ id: number; standing: FdStanding }> = []
 
   for (const [, teams] of byGroup) {
@@ -239,10 +205,16 @@ async function checkBestThirdPlace(matchId: number, standingByTla: Map<string, F
         return b.standing.goalsFor - a.standing.goalsFor
       })
 
+    // Top 2 in this group qualify automatically
+    for (const { id: teamId } of ranked.slice(0, 2)) {
+      await awardQualifyBonus(teamId, matchId)
+    }
+
+    // Collect 3rd-place for the cross-group ranking
     if (ranked[2]) thirdPlaceTeams.push(ranked[2] as { id: number; standing: FdStanding })
   }
 
-  // Rank the 12 third-place teams globally, award +2 to best 8
+  // Best 8 third-place teams also qualify
   const best8 = thirdPlaceTeams
     .sort((a, b) => {
       const ptsDiff = b.standing.points - a.standing.points
