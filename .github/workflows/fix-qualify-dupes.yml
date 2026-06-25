@@ -1,0 +1,51 @@
+name: Fix Qualify Bonus Duplicates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all qualify bonus rows then force-recalculate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # 1. Count how many qualify rows exist before cleanup
+          BEFORE=$(curl -s \
+            "$SUPABASE_URL/rest/v1/draft_points?reason=eq.qualify&select=id" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Prefer: count=exact" \
+            -o /dev/null -w "%{size_download}")
+          echo "Qualify rows before: $(curl -s "$SUPABASE_URL/rest/v1/draft_points?reason=eq.qualify&select=id" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+
+          # 2. Delete ALL qualify bonus rows — they will be re-awarded correctly
+          #    by force_recalculate below, using the fixed awardQualifyBonus logic
+          #    that deduplicates by (user_id, team_id, league_id) instead of match_id.
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE "$SUPABASE_URL/rest/v1/draft_points?reason=eq.qualify" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY")
+          echo "DELETE HTTP status: $HTTP"
+
+          # Verify deletion
+          echo "Qualify rows after DELETE: $(curl -s "$SUPABASE_URL/rest/v1/draft_points?reason=eq.qualify&select=id" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+
+          # 3. Trigger force_recalculate to re-award qualify bonuses (and re-check all other points)
+          echo "Triggering force_recalculate..."
+          RESULT=$(curl -s -X POST "$SUPABASE_URL/functions/v1/fetch-results" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"force_recalculate":true}')
+          echo "fetch-results result: $RESULT"
+
+          # 4. Check final qualify row count (should be at most 1 per team per user per league)
+          echo "Qualify rows after recalc: $(curl -s "$SUPABASE_URL/rest/v1/draft_points?reason=eq.qualify&select=id" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"

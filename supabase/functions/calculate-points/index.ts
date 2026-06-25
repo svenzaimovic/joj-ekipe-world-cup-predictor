@@ -260,6 +260,10 @@ async function checkBestThirdPlace(matchId: number, standingByTla: Map<string, F
 
 // Insert a qualify bonus for every official-room owner of the given team,
 // idempotent via select-before-insert.
+// Dedup key: (user_id, team_id, league_id, reason='qualify') — NOT match_id,
+// because checkGroupAdvancement is called once per group match so each of the
+// 6 completed-group matches would produce a separate row if match_id were
+// included in the check. One qualify bonus per team per player per league.
 async function awardQualifyBonus(teamId: number, matchId: number) {
   const { data: allPicks } = await supabase
     .from('draft_picks')
@@ -270,14 +274,18 @@ async function awardQualifyBonus(teamId: number, matchId: number) {
 
   for (const pick of officialPicks) {
     const leagueId = (pick as any).draft_rooms?.league_id ?? null
-    const { data: existing } = await supabase
+
+    // Check: has this user already received a qualify bonus for this team in this league?
+    const existingQuery = supabase
       .from('draft_points')
       .select('id')
       .eq('user_id', pick.user_id)
       .eq('team_id', teamId)
-      .eq('match_id', matchId)
       .eq('reason', 'qualify')
-      .maybeSingle()
+    if (leagueId != null) existingQuery.eq('league_id', leagueId)
+    else existingQuery.is('league_id', null)
+
+    const { data: existing } = await existingQuery.maybeSingle()
 
     if (!existing) {
       await supabase.from('draft_points').insert({
