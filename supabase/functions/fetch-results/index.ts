@@ -60,38 +60,50 @@ Deno.serve(async (req) => {
       ...(scheduledData.matches ?? []).map((m: FdMatch) => ({ ...m, newStatus: 'scheduled' as const })),
     ]
 
-    // --- 2. Auto-insert any fixture not yet in our DB -----------------------
-    // Knockout fixtures are determined after the group stage and weren't
-    // pre-seeded, so we insert them here when the API first returns them.
+    // --- 2. Auto-insert or update team IDs for any fixture in the API -------
+    // Knockout fixtures may have been pre-seeded with null team IDs (bracket
+    // not yet determined at seed time). Once the group stage ends, the API
+    // fills in the real team TLAs — we propagate those into the DB here.
     let insertedCount = 0
+    let teamIdsFilled = 0
     for (const fixture of fixtures) {
       const externalId = String(fixture.id)
-      const { data: existing } = await supabase
-        .from('matches')
-        .select('id')
-        .eq('external_id', externalId)
-        .maybeSingle()
-
-      if (existing) continue // already tracked — will be updated in step 3
-
       const homeTla = fixture.homeTeam?.tla
       const awayTla = fixture.awayTeam?.tla
       const homeTeamId = homeTla ? (teamsByTla.get(homeTla) ?? null) : null
       const awayTeamId = awayTla ? (teamsByTla.get(awayTla) ?? null) : null
-      const stage = mapStage(fixture.stage)
-      const kickoff = fixture.utcDate
 
-      await supabase.from('matches').insert({
-        external_id: externalId,
-        home_team_id: homeTeamId,
-        away_team_id: awayTeamId,
-        match_date: kickoff,
-        stage,
-        status: fixture.newStatus,
-        lock_time: kickoff, // lock predictions at kickoff
-        stage_order: STAGE_ORDER[stage] ?? 99,
-      })
-      insertedCount++
+      const { data: existing } = await supabase
+        .from('matches')
+        .select('id, home_team_id, away_team_id')
+        .eq('external_id', externalId)
+        .maybeSingle()
+
+      if (!existing) {
+        // Brand new fixture — insert it
+        const stage = mapStage(fixture.stage)
+        const kickoff = fixture.utcDate
+        await supabase.from('matches').insert({
+          external_id: externalId,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId,
+          match_date: kickoff,
+          stage,
+          status: fixture.newStatus,
+          lock_time: kickoff,
+          stage_order: STAGE_ORDER[stage] ?? 99,
+        })
+        insertedCount++
+      } else {
+        // Fixture exists — fill in team IDs if they were null at seed time
+        const updates: Record<string, number> = {}
+        if (homeTeamId && !existing.home_team_id) updates.home_team_id = homeTeamId
+        if (awayTeamId && !existing.away_team_id) updates.away_team_id = awayTeamId
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('matches').update(updates).eq('external_id', externalId)
+          teamIdsFilled++
+        }
+      }
     }
 
     // --- 3. Sync scores/status for active (non-scheduled) matches -----------
@@ -177,6 +189,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         inserted: insertedCount,
+        team_ids_filled: teamIdsFilled,
         updated: updatedCount,
         triggered_calculation: finishedMatchIds.length,
         force: forceRecalculate,
