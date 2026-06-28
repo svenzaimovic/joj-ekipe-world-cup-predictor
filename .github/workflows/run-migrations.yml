@@ -1,0 +1,34 @@
+name: Run DB Migrations
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run migrations via Supabase Management API
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          PROJECT_REF="hteiltgpugyraasehhsy"
+          API="https://api.supabase.com/v1/projects/$PROJECT_REF/database/query"
+
+          run_sql() {
+            local label="$1"
+            local sql="$2"
+            echo "--- $label ---"
+            curl -s -X POST "$API" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": $(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$sql")}"
+            echo ""
+          }
+
+          # Migration 013: add 'tp' (third-place playoff) stage value
+          run_sql "013_add_tp_stage" "ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_stage_check; ALTER TABLE matches ADD CONSTRAINT matches_stage_check CHECK (stage IN ('group','r32','r16','qf','sf','tp','final'));"
+
+          # Migration 014: add winner column for knockout match scoring
+          run_sql "014_match_winner_field" "ALTER TABLE matches ADD COLUMN IF NOT EXISTS winner text CHECK (winner IN ('home', 'away'));"
+
+          echo "Done."

@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     for (const matchId of match_ids) {
       const { data: match } = await supabase
         .from('matches')
-        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
+        .select('*, winner, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
         .eq('id', matchId)
         .single()
 
@@ -108,7 +108,12 @@ async function calculateDraftMatchPoints(matchId: number, match: MatchRow) {
     let pts = 0
     let reason = ''
 
-    if (scored > conceded)        { pts = winPts; reason = 'win' }
+    if (match.stage !== 'group' && match.winner != null) {
+      // Knockout rounds: use the stored winner (covers ET/penalties where fullTime is tied)
+      const wonKnockout = (isHome && match.winner === 'home') || (!isHome && match.winner === 'away')
+      if (wonKnockout) { pts = winPts; reason = 'win' }
+      else             { reason = 'loss' }
+    } else if (scored > conceded)        { pts = winPts; reason = 'win' }
     else if (scored === conceded)  { pts = drawPts; reason = 'draw' }
     else                          { reason = 'loss' }
 
@@ -291,6 +296,7 @@ interface TeamRow {
 interface MatchRow {
   id: number
   stage: string
+  winner: 'home' | 'away' | null
   home_team_id: number
   away_team_id: number
   home_score: number | null
