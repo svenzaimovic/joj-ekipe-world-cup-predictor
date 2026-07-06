@@ -185,7 +185,7 @@ watch(
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-6xl mx-auto pb-24 md:pb-8">
+  <div class="p-4 md:p-8 max-w-6xl mx-auto pb-8">
     <div class="flex items-center gap-3 mb-6">
       <h1 class="text-2xl font-black text-slate-100">{{ isPractice ? 'Practice Draft' : 'Draft Room' }}</h1>
       <span

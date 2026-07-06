@@ -64,7 +64,7 @@ function copyToClipboard(text: string) {
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-2xl mx-auto pb-24 md:pb-8">
+  <div class="p-4 md:p-8 max-w-2xl mx-auto pb-8">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-black text-slate-100">My Leagues</h1>
       <div class="flex gap-2">

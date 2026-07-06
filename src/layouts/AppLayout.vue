@@ -3,6 +3,7 @@ import { watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import AppNav from '@/components/layout/AppNav.vue'
+import MobileMenu from '@/components/layout/MobileMenu.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -24,12 +25,12 @@ watchEffect(() => {
     <!-- Desktop sidebar -->
     <AppNav class="hidden md:flex" />
 
-    <!-- Main content -->
-    <main class="flex-1 overflow-auto">
+    <!-- Mobile top header + hamburger drawer -->
+    <MobileMenu class="md:hidden" />
+
+    <!-- Main content — pt-14 on mobile to clear fixed header bar -->
+    <main class="flex-1 overflow-auto pt-14 md:pt-0">
       <RouterView />
     </main>
-
-    <!-- Mobile bottom nav -->
-    <AppNav class="md:hidden" :mobile="true" />
   </div>
 </template>

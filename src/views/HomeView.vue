@@ -35,7 +35,7 @@ const myEntry = computed(() =>
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">
+  <div class="p-4 md:p-8 max-w-4xl mx-auto pb-8">
     <!-- Welcome -->
     <div class="mb-8">
       <h1 class="text-2xl font-black text-slate-100">

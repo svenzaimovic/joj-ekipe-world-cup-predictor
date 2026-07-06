@@ -73,7 +73,7 @@ async function logout() {
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-lg mx-auto pb-24 md:pb-8">
+  <div class="p-4 md:p-8 max-w-lg mx-auto pb-8">
     <!-- Onboarding banner -->
     <div v-if="isOnboarding" class="bg-gold-500/10 border border-gold-500/30 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
       <Sparkles :size="18" class="shrink-0 text-gold-400 mt-0.5" />

@@ -4,7 +4,7 @@ import type { Component } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLeagueStore } from '@/stores/league.store'
 import { useRoute, useRouter } from 'vue-router'
-import { Home, Shuffle, FlaskConical, Calendar, Star, Trophy, LayoutGrid, User, LogOut } from 'lucide-vue-next'
+import { Home, Shuffle, FlaskConical, Calendar, Star, Trophy, LayoutGrid, User, LogOut, ChevronLeft } from 'lucide-vue-next'
 
 defineProps<{ mobile?: boolean }>()
 
@@ -89,7 +89,13 @@ async function logout() {
 
     <!-- League context header -->
     <div v-if="leagueId && leagueStore.activeLeague" class="px-3 py-2 mb-2 border-b border-navy-700">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">League</div>
+      <RouterLink
+        :to="{ name: 'leagues' }"
+        class="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors mb-1"
+      >
+        <ChevronLeft :size="12" />
+        All Leagues
+      </RouterLink>
       <div class="font-bold text-gold-400 text-sm truncate">{{ leagueStore.activeLeague.name }}</div>
     </div>
 

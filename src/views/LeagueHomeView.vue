@@ -92,7 +92,7 @@ function copyInviteCode() {
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">
+  <div class="p-4 md:p-8 max-w-4xl mx-auto pb-8">
     <div class="flex items-start justify-between mb-6 gap-4">
       <div>
         <h1 class="text-2xl font-black text-slate-100">{{ league?.name }}</h1>
