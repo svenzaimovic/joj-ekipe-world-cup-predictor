@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { Crown, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { TIER_COLORS, TIER_LABELS } from '@/types/app.types'
 import type { Team, TeamTier } from '@/types/app.types'
+import { useElimination } from '@/composables/useElimination'
 
 const route = useRoute()
 const leaderboardStore = useLeaderboardStore()
@@ -32,6 +33,8 @@ interface TeamBreakdown {
 
 const userTeams = ref<Map<string, TeamBreakdown[]>>(new Map())
 
+const { fetchElimination, isEliminated } = useElimination()
+
 // Cache official room ID for this league
 let officialRoomId: string | null = null
 
@@ -39,13 +42,11 @@ onMounted(async () => {
   await leaderboardStore.fetch(leagueId.value)
   leaderboardChannel.value = leaderboardStore.subscribeToUpdates(leagueId.value)
 
-  // Pre-fetch room id
-  const { data: room } = await supabase
-    .from('draft_rooms')
-    .select('id')
-    .eq('league_id', leagueId.value)
-    .eq('room_type', 'official')
-    .maybeSingle()
+  // Pre-fetch room id and elimination state in parallel
+  const [{ data: room }] = await Promise.all([
+    supabase.from('draft_rooms').select('id').eq('league_id', leagueId.value).eq('room_type', 'official').maybeSingle(),
+    fetchElimination(leagueId.value),
+  ])
   officialRoomId = room?.id ?? null
 })
 
@@ -152,22 +153,21 @@ async function toggleUser(userId: string) {
             <div
               v-for="item in userTeams.get(entry.user_id)"
               :key="item.team.id"
-              class="flex items-center gap-3 bg-navy-900/60 rounded-lg px-3 py-2"
+              :class="['flex items-center gap-3 bg-navy-900/60 rounded-lg px-3 py-2', isEliminated(item.team.id) ? 'opacity-50' : '']"
             >
               <img
                 v-if="item.team.flag_url"
                 :src="item.team.flag_url"
                 :alt="item.team.name"
-                class="w-7 h-5 object-cover rounded-sm shrink-0 shadow"
+                :class="['w-7 h-5 object-cover rounded-sm shrink-0 shadow', isEliminated(item.team.id) ? 'grayscale' : '']"
               />
               <div v-else class="w-7 h-5 bg-navy-700 rounded-sm shrink-0" />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
                   <span :class="['w-1.5 h-1.5 rounded-full shrink-0', TIER_COLORS[item.team.tier as TeamTier]?.dot]" />
-                  <span class="text-sm font-semibold text-slate-200 truncate">{{ item.team.name }}</span>
-                  <span :class="['text-xs shrink-0', TIER_COLORS[item.team.tier as TeamTier]?.text]">
-                    T{{ item.team.tier }}
-                  </span>
+                  <span :class="['text-sm font-semibold text-slate-200 truncate', isEliminated(item.team.id) ? 'line-through decoration-slate-500' : '']">{{ item.team.name }}</span>
+                  <span :class="['text-xs shrink-0', TIER_COLORS[item.team.tier as TeamTier]?.text]">T{{ item.team.tier }}</span>
+                  <span v-if="isEliminated(item.team.id)" class="text-[10px] font-semibold text-slate-500 bg-navy-800 rounded px-1 py-0.5 shrink-0 uppercase tracking-wide">out</span>
                 </div>
                 <div class="text-[11px] text-slate-500 mt-0.5 flex gap-2 flex-wrap">
                   <span v-if="item.wins > 0">Win {{ item.wins }}pts</span>

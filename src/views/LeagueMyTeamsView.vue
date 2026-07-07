@@ -7,6 +7,7 @@ import { TIER_COLORS, TIER_LABELS } from '@/types/app.types'
 import type { Team, TeamTier } from '@/types/app.types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { Shuffle } from 'lucide-vue-next'
+import { useElimination } from '@/composables/useElimination'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -19,6 +20,8 @@ interface TeamWithPoints extends Team {
 const teams = ref<TeamWithPoints[]>([])
 const loading = ref(true)
 const noDraft = ref(false)
+
+const { fetchElimination, isEliminated } = useElimination()
 
 const totalPoints = computed(() => teams.value.reduce((s, t) => s + t.earnedPoints, 0))
 const sortedTeams = computed(() =>
@@ -72,6 +75,7 @@ onMounted(async () => {
     earnedPoints: pointsByTeam[(p.teams as unknown as Team).id] ?? 0,
   }))
 
+  await fetchElimination(leagueId)
   loading.value = false
 })
 </script>
@@ -103,18 +107,28 @@ onMounted(async () => {
       <div
         v-for="team in sortedTeams"
         :key="team.id"
-        :class="['flex items-center gap-4 p-4 rounded-xl border bg-navy-800 transition-all', TIER_COLORS[team.tier as TeamTier].border]"
+        :class="[
+          'flex items-center gap-4 p-4 rounded-xl border bg-navy-800 transition-all',
+          isEliminated(team.id)
+            ? 'border-navy-700 opacity-50'
+            : TIER_COLORS[team.tier as TeamTier].border,
+        ]"
       >
         <!-- Flag -->
         <img
           :src="team.flag_url ?? ''"
           :alt="team.name"
-          class="w-10 h-7 object-cover rounded shadow shrink-0"
+          :class="['w-10 h-7 object-cover rounded shadow shrink-0', isEliminated(team.id) ? 'grayscale' : '']"
         />
 
         <!-- Name + tier -->
         <div class="flex-1 min-w-0">
-          <div class="font-bold text-slate-100 truncate">{{ team.name }}</div>
+          <div class="flex items-center gap-2">
+            <div :class="['font-bold text-slate-100 truncate', isEliminated(team.id) ? 'line-through decoration-slate-500' : '']">
+              {{ team.name }}
+            </div>
+            <span v-if="isEliminated(team.id)" class="text-[10px] font-semibold text-slate-500 bg-navy-700 rounded px-1.5 py-0.5 shrink-0 uppercase tracking-wide">out</span>
+          </div>
           <div class="flex items-center gap-1.5 mt-0.5">
             <div :class="['w-1.5 h-1.5 rounded-full shrink-0', TIER_COLORS[team.tier as TeamTier].dot]" />
             <span :class="['text-xs font-semibold', TIER_COLORS[team.tier as TeamTier].text]">
